@@ -8,3 +8,7 @@ output/*
 !output/.gitkeep
 input/*
 !input/.gitkeep
+!input/processed/
+input/processed/*
+!input/processed/.gitkeep
+.venv/

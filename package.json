@@ -22,8 +22,12 @@
     "typescript": "5.9.3"
   },
   "scripts": {
+    "setup": "node scripts/setup.mjs",
     "dev": "remotion studio",
     "build": "remotion bundle",
+    "render": "remotion render MyComp output/video.mp4",
+    "watch": "node scripts/watch.mjs",
+    "beats": "python3 scripts/extract_beats.py",
     "upgrade": "remotion upgrade",
     "lint": "eslint src && tsc"
   },

@@ -1,0 +1,8 @@
+{
+  "fps": 30,
+  "captions": [
+    { "start": 0.67, "end": 1.83, "text": "This is the first caption." },
+    { "start": 2.0, "end": 3.33, "text": "And this is the second one." },
+    { "start": 3.5, "end": 4.83, "text": "Last line before the end." }
+  ]
+}

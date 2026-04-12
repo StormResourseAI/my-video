@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-Transcribe a local video file to data/transcript.json using OpenAI Whisper.
+Transcribe a local video file using OpenAI Whisper.
 
 Usage:
-    python3 scripts/transcribe.py                    # uses input/video.mp4
-    python3 scripts/transcribe.py input/myclip.mp4   # explicit path
+    python3 scripts/transcribe.py                                          # input/video.mp4 → data/transcript.json
+    python3 scripts/transcribe.py input/clip1.mp4                         # → data/transcript.json
+    python3 scripts/transcribe.py input/clip1.mp4 data/transcripts/clip1.mp4.json  # explicit output
 
-Output: data/transcript.json (seconds-based, matches src/lib/transcript.ts schema)
+Output schema: { fps, captions: [{start, end, text}] }  (seconds-based)
 
 Install once:
     pip3 install openai-whisper
@@ -23,6 +24,7 @@ def main():
         sys.exit(1)
 
     input_path = sys.argv[1] if len(sys.argv) > 1 else "input/video.mp4"
+    out_path = sys.argv[2] if len(sys.argv) > 2 else "data/transcript.json"
 
     if not os.path.exists(input_path):
         print(f"ERROR: input file not found: {input_path}")
@@ -51,8 +53,7 @@ def main():
 
     transcript = {"fps": 30, "captions": captions}
 
-    os.makedirs("data", exist_ok=True)
-    out_path = "data/transcript.json"
+    os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     with open(out_path, "w") as f:
         json.dump(transcript, f, indent=2)
 

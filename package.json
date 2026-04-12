@@ -7,10 +7,11 @@
   "private": true,
   "dependencies": {
     "@remotion/cli": "4.0.445",
+    "@remotion/media": "^4.0.445",
+    "@remotion/tailwind-v4": "4.0.445",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "remotion": "4.0.445",
-    "@remotion/tailwind-v4": "4.0.445",
     "tailwindcss": "4.0.0"
   },
   "devDependencies": {
@@ -26,6 +27,8 @@
     "dev": "remotion studio",
     "build": "remotion bundle",
     "render": "remotion render MyComp output/video.mp4",
+    "render:multi": "remotion render MultiClip output/multi.mp4",
+    "manifest": "node scripts/build-manifest.mjs",
     "watch": "node scripts/watch.mjs",
     "beats": "python3 scripts/extract_beats.py",
     "upgrade": "remotion upgrade",

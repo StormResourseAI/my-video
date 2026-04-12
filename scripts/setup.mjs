@@ -8,9 +8,9 @@
  */
 
 import { execSync } from "child_process";
-import { mkdirSync } from "fs";
+import { mkdirSync, symlinkSync, existsSync } from "fs";
 
-const DIRS = ["input", "output", "data"];
+const DIRS = ["input", "output", "data", "public"];
 
 let allGood = true;
 
@@ -37,6 +37,15 @@ console.log("\nDirectories:");
 for (const dir of DIRS) {
   mkdirSync(dir, { recursive: true });
   console.log(`  [ok] ${dir}/`);
+}
+
+// Symlink public/clips → ../input so staticFile("clips/x.mp4") resolves
+const clipsLink = "public/clips";
+if (!existsSync(clipsLink)) {
+  symlinkSync("../input", clipsLink);
+  console.log("  [ok] public/clips → input/ (symlink created)");
+} else {
+  console.log("  [ok] public/clips (exists)");
 }
 
 console.log("\nRequired dependencies:");

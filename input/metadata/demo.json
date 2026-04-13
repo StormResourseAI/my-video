@@ -1,0 +1,7 @@
+{
+  "title": "Demo Vertical Batch",
+  "maxClipSec": 4,
+  "titleFrames": 45,
+  "transitionFrames": 8,
+  "backgroundColor": "#111111"
+}

@@ -30,6 +30,8 @@
     "dev": "remotion studio",
     "build": "remotion bundle",
     "render": "remotion render MyComp output/video.mp4",
+    "render:vertical": "node scripts/render-vertical.mjs",
+    "render:demo": "node scripts/render-vertical.mjs demo",
     "render:multi": "remotion render MultiClip output/multi.mp4",
     "render:variants": "remotion render MultiClip-A output/multi-a.mp4 && remotion render MultiClip-B output/multi-b.mp4 && remotion render MultiClip-C output/multi-c.mp4",
     "render:pack": "remotion render MultiClip-A output/multi-a.mp4 && remotion render MultiClip-B output/multi-b.mp4",

@@ -5,6 +5,7 @@ dist/
 build/
 coverage/
 tmp/
+.venv/
 .DS_Store
 *.log
 .env
@@ -16,12 +17,40 @@ tmp/
 *.mp3
 *.zip
 
-# Ignore rendered output and raw footage, but keep directory structure
-output/*
-!output/.gitkeep
-input/*
-!input/.gitkeep
-!input/processed/
-input/processed/*
-!input/processed/.gitkeep
-.venv/
+# Legacy top-level ingest dumps stay ignored.
+/input/*
+!/input/.gitkeep
+!/input/raw/
+!/input/selects/
+!/input/scripts/
+!/input/metadata/
+!/input/processed/
+
+# Same-day workflow folders: keep structure in git, ignore media and client files.
+/input/raw/**
+!/input/raw/.gitkeep
+/input/selects/**
+!/input/selects/.gitkeep
+!/input/selects/demo/
+/input/selects/demo/**
+!/input/selects/demo/.gitkeep
+/input/scripts/**
+!/input/scripts/.gitkeep
+/input/metadata/**
+!/input/metadata/.gitkeep
+!/input/metadata/demo.json
+/input/processed/**
+!/input/processed/.gitkeep
+
+# Render outputs stay local; keep folders only.
+/output/*
+!/output/.gitkeep
+!/output/previews/
+!/output/vertical/
+/output/previews/**
+!/output/previews/.gitkeep
+/output/vertical/**
+!/output/vertical/.gitkeep
+
+# Render-time staged media.
+/public/runtime-selects/

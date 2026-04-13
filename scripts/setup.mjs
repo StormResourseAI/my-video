@@ -8,9 +8,23 @@
  */
 
 import { execSync } from "child_process";
-import { mkdirSync, symlinkSync, existsSync } from "fs";
+import { mkdirSync, symlinkSync, existsSync, lstatSync } from "fs";
 
-const DIRS = ["input", "output", "data", "public"];
+const DIRS = [
+  "input",
+  "input/raw",
+  "input/selects",
+  "input/scripts",
+  "input/metadata",
+  "input/processed",
+  "output",
+  "output/previews",
+  "output/vertical",
+  "templates/vertical-core",
+  "docs",
+  "data",
+  "public",
+];
 
 let allGood = true;
 
@@ -39,14 +53,25 @@ for (const dir of DIRS) {
   console.log(`  [ok] ${dir}/`);
 }
 
-// Symlink public/clips → ../input so staticFile("clips/x.mp4") resolves
-const clipsLink = "public/clips";
-if (!existsSync(clipsLink)) {
-  symlinkSync("../input", clipsLink);
-  console.log("  [ok] public/clips → input/ (symlink created)");
-} else {
-  console.log("  [ok] public/clips (exists)");
-}
+const ensureSymlink = (linkPath, target, label) => {
+  if (!existsSync(linkPath)) {
+    symlinkSync(target, linkPath);
+    console.log(`  [ok] ${label} (symlink created)`);
+    return;
+  }
+
+  if (lstatSync(linkPath).isSymbolicLink()) {
+    console.log(`  [ok] ${label}`);
+    return;
+  }
+
+  console.warn(`  [--] ${label} exists but is not a symlink`);
+};
+
+// Keep legacy path working for existing compositions.
+ensureSymlink("public/clips", "../input", "public/clips → input/");
+// New same-day workflow path.
+ensureSymlink("public/selects", "../input/selects", "public/selects → input/selects/");
 
 console.log("\nRequired dependencies:");
 check("node", () => execSync("node --version", { stdio: "pipe" }));

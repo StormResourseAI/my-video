@@ -3,6 +3,10 @@ import { Composition, type CalculateMetadataFunction } from "remotion";
 import { MyComposition } from "./Composition";
 import { MultiClipComposition } from "./MultiClipComposition";
 import { MultiClipVariantComposition } from "./MultiClipVariantComposition";
+import {
+  VerticalCoreComposition,
+  type VerticalCoreProps,
+} from "./VerticalCoreComposition";
 import rawManifest from "../data/manifest.json";
 import rawBeats from "../data/beats.json";
 import rawProfile from "../data/style-profile.json";
@@ -57,6 +61,18 @@ const makeVariantMetadata = (
   return { durationInFrames: Math.max(total, 1) };
 };
 
+const calcVerticalCoreMetadata: CalculateMetadataFunction<VerticalCoreProps> = ({
+  props,
+}) => {
+  const transitionFrames = props.transitionFrames ?? 8;
+  const total = props.clips.reduce((sum, clip) => sum + clip.durationInFrames, 0);
+  const overlaps = Math.max(0, props.clips.length - 1) * transitionFrames;
+
+  return {
+    durationInFrames: Math.max(total - overlaps, 1),
+  };
+};
+
 export const RemotionRoot: React.FC = () => {
   return (
     <>
@@ -76,6 +92,22 @@ export const RemotionRoot: React.FC = () => {
         width={1080}
         height={1920}
         calculateMetadata={calcMultiClipMetadata}
+      />
+      <Composition
+        id="vertical-core"
+        component={VerticalCoreComposition}
+        durationInFrames={150}
+        fps={30}
+        width={1080}
+        height={1920}
+        defaultProps={{
+          backgroundColor: "#111111",
+          clips: [],
+          title: "Vertical Core",
+          titleFrames: 45,
+          transitionFrames: 8,
+        }}
+        calculateMetadata={calcVerticalCoreMetadata}
       />
       {variants.map((v, i) => (
         <Composition

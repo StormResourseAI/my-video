@@ -1,0 +1,12 @@
+{
+  "approved": [
+    {
+      "output": "output/multi.mp4",
+      "recordedAt": "2026-04-13T01:56:01.098Z"
+    }
+  ],
+  "rejected": [],
+  "preferredHook": "Watch till the end.",
+  "preferredMaxClipSec": 5,
+  "notes": []
+}

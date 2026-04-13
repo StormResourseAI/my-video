@@ -1,0 +1,7 @@
+[
+  {
+    "file": "_test_bad_file.mp4",
+    "reason": "ffprobe failed",
+    "quarantinedAt": "2026-04-13T01:54:02.729Z"
+  }
+]

@@ -1,0 +1,9 @@
+{
+  "batchStart": "2026-04-13T01:54:00.000Z",
+  "completedAt": "2026-04-13T01:54:41.584Z",
+  "filesSeen": 3,
+  "filesProcessed": 2,
+  "filesSkipped": 0,
+  "filesFailed": 1,
+  "outputGenerated": "output/multi.mp4"
+}

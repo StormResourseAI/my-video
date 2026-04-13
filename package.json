@@ -23,6 +23,8 @@
     "typescript": "5.9.3"
   },
   "scripts": {
+    "ingest": "bash scripts/ingest_media.sh",
+    "feedback": "node scripts/feedback.mjs",
     "preset": "node scripts/use-preset.mjs",
     "setup": "node scripts/setup.mjs",
     "dev": "remotion studio",

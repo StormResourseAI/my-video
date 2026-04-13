@@ -10,6 +10,8 @@ export type ClipEntry = {
   maxClipSec: number | null;        // cap usable duration (null = use default)
   score?: number;                   // computed by build-manifest; higher = preferred
   hookScore?: number;               // computed by build-manifest; higher = better opening clip
+  energyScore?: number;             // editorial energy signal (fast speech, punchy duration)
+  clipType?: "talking_head" | "broll" | "unknown";
   transcriptWordCount?: number;     // total words in transcript (0 if none)
 };
 

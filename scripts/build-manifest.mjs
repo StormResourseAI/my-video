@@ -20,7 +20,8 @@ const AUDIO_EXTS = new Set([".mp3", ".wav", ".aac", ".m4a", ".ogg"]);
 const INPUT_DIR = "input";
 const OUT_PATH = "data/manifest.json";
 const PROFILE_PATH = "data/style-profile.json";
-const MEMORY_PATH  = "data/style-memory.json";
+const MEMORY_PATH   = "data/style-memory.json";
+const FEEDBACK_PATH = "data/client-feedback.json";
 
 // Load style memory for scoring bias (graceful fallback)
 let memoryPreferredSec = null;
@@ -28,6 +29,14 @@ try {
   const mem = JSON.parse(readFileSync(MEMORY_PATH, "utf8"));
   memoryPreferredSec = mem?.summary?.preferredAvgClipSec ?? null;
 } catch { /* no memory yet */ }
+
+// Load client feedback for scoring bias
+let feedbackPreferredMaxSec = null;
+try {
+  const fb = JSON.parse(readFileSync(FEEDBACK_PATH, "utf8"));
+  feedbackPreferredMaxSec = fb?.preferredMaxClipSec ?? null;
+  // If client prefers a specific pacing, nudge pacingMaxSec (applied after profile load below)
+} catch { /* no feedback yet */ }
 
 // Load style-profile for selection settings (graceful fallback)
 let selectionMode = "all";
@@ -45,6 +54,12 @@ try {
   pacingMinSec         = profileRaw?.pacing?.minClipSec       ?? pacingMinSec;
   pacingMaxSec         = profileRaw?.pacing?.maxClipSec       ?? pacingMaxSec;
 } catch { /* use defaults */ }
+
+// Feedback overrides: client-preferred pacing wins over profile (soft nudge)
+if (feedbackPreferredMaxSec !== null) {
+  // Blend: 75% profile, 25% feedback — avoids hard overrides breaking current behavior
+  pacingMaxSec = pacingMaxSec * 0.75 + feedbackPreferredMaxSec * 0.25;
+}
 
 const PENALTY_NAMES = ["test", "backup", "tmp", "raw", "draft", "junk"];
 
@@ -109,6 +124,54 @@ function hookScore(file, durationSec, transcript) {
   // Filename hints for hook-y content
   const lower = file.toLowerCase();
   if (["hook", "intro", "open", "start"].some((h) => lower.includes(h))) score += 2;
+
+  return score;
+}
+
+/**
+ * Classify a clip as talking_head, broll, or unknown.
+ * Heuristics: transcript presence/length, filename hints.
+ */
+function classifyClip(file, transcriptWordCount) {
+  const lower = file.toLowerCase();
+  const brollHints  = ["broll", "b-roll", "b_roll", "cutaway", "overlay", "footage", "background"];
+  const talkHints   = ["interview", "talking", "speech", "speaking", "face", "headshot", "talking_head"];
+
+  if (brollHints.some((h) => lower.includes(h))) return "broll";
+  if (talkHints.some((h) => lower.includes(h)))  return "talking_head";
+  if (transcriptWordCount >= 10)                  return "talking_head";
+  if (transcriptWordCount > 0)                    return "talking_head"; // any speech = talking head
+  return "unknown";
+}
+
+/**
+ * Energy score: editorial/visual strength signal.
+ * Distinct from scoreClip — weights fast speech and short punchy clips higher.
+ */
+function energyScore(file, durationSec, transcript) {
+  let score = 0;
+
+  // Punchy duration: 2–6s is energetic
+  if (durationSec >= 2 && durationSec <= 6)       score += 4;
+  else if (durationSec > 6 && durationSec <= 10)  score += 2;
+  else if (durationSec < 2)                        score += 1; // very short = snappy
+
+  if (transcript && transcript.captions?.length > 0) {
+    const cues    = transcript.captions;
+    const spanSec = cues[cues.length - 1].end - cues[0].start;
+    const words   = cues.reduce((n, c) => n + c.text.trim().split(/\s+/).length, 0);
+    const density = spanSec > 0 ? words / spanSec : 0;
+
+    // Fast speech = energy
+    if (density >= 3.0)      score += 4;
+    else if (density >= 2.0) score += 3;
+    else if (density >= 1.0) score += 2;
+    else if (density > 0)    score += 1;
+  }
+
+  // Filename energy hints
+  const lower = file.toLowerCase();
+  if (["hype", "energy", "fire", "hype", "lit", "wild"].some((h) => lower.includes(h))) score += 1;
 
   return score;
 }
@@ -180,12 +243,14 @@ const clips = files.flatMap((file, idx) => {
     }
   }
 
-  const score        = scoreClip(file, durationSec, transcript);
-  const hScore       = hookScore(file, durationSec, transcript);
   const transcriptWordCount = transcript?.captions
     ? transcript.captions.reduce((n, c) => n + c.text.trim().split(/\s+/).length, 0)
     : 0;
-  console.log(`[manifest]   ${durationSec.toFixed(2)}s / ${durationFrames}f${transcript ? ` +transcript(${transcriptWordCount}w)` : ""} score=${score} hookScore=${hScore}`);
+  const score       = scoreClip(file, durationSec, transcript);
+  const hScore      = hookScore(file, durationSec, transcript);
+  const eScore      = energyScore(file, durationSec, transcript);
+  const clipType    = classifyClip(file, transcriptWordCount);
+  console.log(`[manifest]   ${durationSec.toFixed(2)}s / ${durationFrames}f ${clipType}${transcript ? ` +transcript(${transcriptWordCount}w)` : ""} score=${score} hookScore=${hScore} energy=${eScore}`);
   return [{
     file,
     durationSec: parseFloat(durationSec.toFixed(3)),
@@ -197,6 +262,8 @@ const clips = files.flatMap((file, idx) => {
     maxClipSec:     prev.maxClipSec     ?? null,
     score,
     hookScore: hScore,
+    energyScore: eScore,
+    clipType,
     transcriptWordCount,
   }];
 });

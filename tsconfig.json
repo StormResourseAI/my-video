@@ -12,5 +12,6 @@
     "noUnusedLocals": true,
     "resolveJsonModule": true
   },
+  "include": ["src/**/*"],
   "exclude": ["remotion.config.ts"]
 }

@@ -1,0 +1,50 @@
+{
+  "brand": {
+    "color": "#7C3AED",
+    "backgroundColor": "#0f0f0f",
+    "fontFamily": "sans-serif",
+    "hookText": "You need to see this.",
+    "handle": "@yourbrand"
+  },
+  "caption": {
+    "fontSize": 44,
+    "fontWeight": 700,
+    "backgroundColor": "rgba(0,0,0,0.75)",
+    "color": "#ffffff",
+    "bottomOffset": 320
+  },
+  "pacing": {
+    "startTrimSec": 0.3,
+    "endTrimSec": 0.3,
+    "maxClipSec": 7,
+    "minClipSec": 1.5
+  },
+  "beatSync": {
+    "enabled": true,
+    "snapWindowSec": 1.5
+  },
+  "transition": {
+    "enabled": true,
+    "durationSec": 0.3,
+    "scale": true
+  },
+  "hook": {
+    "enabled": true,
+    "text": "You need to see this.",
+    "durationSec": 1.5,
+    "position": "top",
+    "fontSize": 56,
+    "backgroundColor": "rgba(0,0,0,0.6)"
+  },
+  "audio": {
+    "musicVolume": 0.3,
+    "duckedVolume": 0.07,
+    "duckingEnabled": true
+  },
+  "selection": {
+    "mode": "all",
+    "topN": 5,
+    "minScore": -10,
+    "hookEnabled": false
+  }
+}

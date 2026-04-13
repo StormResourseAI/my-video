@@ -1,9 +1,10 @@
 import { AbsoluteFill, useCurrentFrame } from "remotion";
 import { Caption } from "./components/Caption";
-import styleData from "../data/style.json";
-import type { StyleProfile } from "./lib/style";
+import rawProfile from "../data/style-profile.json";
+import { resolveProfile } from "./lib/profile";
 
-const style: StyleProfile = styleData;
+const profile = resolveProfile(rawProfile);
+const brand = profile.brand;
 
 export const MyComposition = () => {
   const frame = useCurrentFrame();
@@ -12,8 +13,8 @@ export const MyComposition = () => {
   return (
     <AbsoluteFill
       style={{
-        backgroundColor: style.backgroundColor,
-        fontFamily: style.fontFamily,
+        backgroundColor: brand.backgroundColor,
+        fontFamily: brand.fontFamily,
       }}
     >
       {/* Talking-head placeholder */}
@@ -35,7 +36,7 @@ export const MyComposition = () => {
             height: 320,
             borderRadius: "50%",
             backgroundColor: "#2a2a2a",
-            border: `4px solid ${style.brandColor}`,
+            border: `4px solid ${brand.color}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -70,7 +71,7 @@ export const MyComposition = () => {
             letterSpacing: -1,
           }}
         >
-          {style.hookText}
+          {brand.hookText}
         </div>
       </AbsoluteFill>
 
@@ -86,7 +87,7 @@ export const MyComposition = () => {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: style.brandColor,
+          backgroundColor: brand.color,
           opacity,
         }}
       >
@@ -99,7 +100,7 @@ export const MyComposition = () => {
             textTransform: "uppercase",
           }}
         >
-          {style.handle}
+          {brand.handle}
         </div>
       </AbsoluteFill>
     </AbsoluteFill>

@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """
-Extract beat timestamps from a video or audio file.
+Extract beat timestamps from a music track or video file.
+
+Convention: place your music track at input/music.mp3 (or .wav/.m4a/.aiff).
 
 Usage:
-    python3 scripts/extract_beats.py                    # uses input/video.mp4
-    python3 scripts/extract_beats.py input/myclip.mp4
+    python3 scripts/extract_beats.py                         # uses input/music.mp3
+    python3 scripts/extract_beats.py input/track.wav         # explicit path
 
 Output: data/beats.json
 
@@ -24,7 +26,7 @@ def main():
         print("ERROR: ffmpeg not found in PATH. Install: brew install ffmpeg")
         sys.exit(1)
 
-    input_path = sys.argv[1] if len(sys.argv) > 1 else "input/video.mp4"
+    input_path = sys.argv[1] if len(sys.argv) > 1 else "input/music.mp3"
 
     if not os.path.exists(input_path):
         print(f"ERROR: input file not found: {input_path}")

@@ -1,0 +1,50 @@
+{
+  "brand": {
+    "color": "#E11D48",
+    "backgroundColor": "#0a0a0a",
+    "fontFamily": "sans-serif",
+    "hookText": "This changes everything.",
+    "handle": "@client-a"
+  },
+  "caption": {
+    "fontSize": 48,
+    "fontWeight": 800,
+    "backgroundColor": "rgba(225,29,72,0.85)",
+    "color": "#ffffff",
+    "bottomOffset": 280
+  },
+  "pacing": {
+    "startTrimSec": 0.2,
+    "endTrimSec": 0.2,
+    "maxClipSec": 6,
+    "minClipSec": 1.5
+  },
+  "beatSync": {
+    "enabled": true,
+    "snapWindowSec": 1
+  },
+  "transition": {
+    "enabled": true,
+    "durationSec": 0.25,
+    "scale": true
+  },
+  "hook": {
+    "enabled": true,
+    "text": "This changes everything.",
+    "durationSec": 1.2,
+    "position": "top",
+    "fontSize": 60,
+    "backgroundColor": "rgba(225,29,72,0.8)"
+  },
+  "audio": {
+    "musicVolume": 0.25,
+    "duckedVolume": 0.05,
+    "duckingEnabled": true
+  },
+  "selection": {
+    "mode": "all",
+    "topN": 5,
+    "minScore": -10,
+    "hookEnabled": false
+  }
+}

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Watch input/ for new video files.
- * On detection: transcribe per-clip → rebuild manifest → render MultiClip.
+ * Batches all pending files together: transcribe all → manifest once → render once.
  *
  * Usage:
  *   node scripts/watch.mjs
@@ -12,101 +12,131 @@ import { spawnSync } from "child_process";
 import { readdirSync, existsSync, mkdirSync, renameSync } from "fs";
 import { extname, resolve } from "path";
 
-const INPUT_DIR = resolve("input");
-const PROCESSED_DIR = resolve("input/processed");
-const POLL_MS = 2000;
-const TIMEOUT_MS = 300_000; // 5 min per operation
+const INPUT_DIR      = resolve("input");
+const PROCESSED_DIR  = resolve("input/processed");
+const POLL_MS        = 3000;
+const TRANSCRIBE_TIMEOUT_MS = 600_000;  // 10 min per clip
+const MANIFEST_TIMEOUT_MS   = 60_000;   // 1 min
+const RENDER_TIMEOUT_MS     = 1_800_000; // 30 min (large batches)
 const VIDEO_EXTS = new Set([".mp4", ".mov", ".mkv", ".webm"]);
 
-mkdirSync(INPUT_DIR, { recursive: true });
+mkdirSync(INPUT_DIR,    { recursive: true });
 mkdirSync(PROCESSED_DIR, { recursive: true });
 mkdirSync("data/transcripts", { recursive: true });
 
-const processed = new Set();
-const failed = new Set();
+// Track state across poll cycles
+const done    = new Set(); // successfully processed
+const failed  = new Set(); // failed at any step — will retry on next drop
 
-// Seed with files already present at startup so we don't reprocess them.
+// Seed with files already present at startup so they aren't re-triggered.
 for (const f of readdirSync(INPUT_DIR)) {
-  if (VIDEO_EXTS.has(extname(f).toLowerCase())) processed.add(f);
+  if (VIDEO_EXTS.has(extname(f).toLowerCase())) done.add(f);
 }
 
-console.log(`[watch] Watching ${INPUT_DIR} — drop video files to start the pipeline.`);
+console.log(`[watch] Watching ${INPUT_DIR}`);
+console.log(`[watch] Drop video files to trigger the pipeline.`);
+
+function run(cmd, args, opts = {}) {
+  const r = spawnSync(cmd, args, { stdio: "inherit", shell: false, ...opts });
+  return r.status === 0 && !r.error;
+}
+
+function ts() {
+  return new Date().toTimeString().slice(0, 8);
+}
 
 setInterval(() => {
-  let files;
+  let allFiles;
   try {
-    files = readdirSync(INPUT_DIR);
+    allFiles = readdirSync(INPUT_DIR);
   } catch {
     return;
   }
 
-  for (const file of files) {
-    if (!VIDEO_EXTS.has(extname(file).toLowerCase())) continue;
-    if (processed.has(file)) continue;
+  // Collect files not yet processed or previously failed
+  const pending = allFiles.filter(
+    (f) => VIDEO_EXTS.has(extname(f).toLowerCase()) && !done.has(f)
+  );
 
-    processed.add(file);
-    const inputPath = `input/${file}`;
+  if (pending.length === 0) return;
+
+  const total = pending.length;
+  console.log(`\n[watch] ${ts()} ── Batch: ${total} file(s) pending ──`);
+
+  // ── Step 1: Transcribe all pending clips ─────────────────────────────────
+  const transcribed = [];
+  const transcribeFailed = [];
+
+  for (let idx = 0; idx < pending.length; idx++) {
+    const file = pending[idx];
+    const inputPath   = `input/${file}`;
     const transcriptOut = `data/transcripts/${file}.json`;
-    console.log(`\n[watch] ● ${file}`);
+    console.log(`[watch] [transcribe ${idx + 1}/${total}] ${file}`);
 
-    // Step 1 — transcribe
-    console.log(`[watch] [1/3] Transcribing...`);
-    const transcribeResult = spawnSync(
-      "python3",
-      ["scripts/transcribe.py", inputPath, transcriptOut],
-      { stdio: "inherit", timeout: TIMEOUT_MS }
-    );
-
-    if (transcribeResult.status !== 0 || transcribeResult.error) {
-      const reason = transcribeResult.error?.message ?? `exit ${transcribeResult.status}`;
-      console.error(`[watch] [FAIL] Transcribe — ${reason}`);
-      console.error(`[watch]        Retry: rename or re-copy the file into input/`);
-      failed.add(file);
-      continue;
-    }
-
-    // Step 2 — rebuild manifest
-    console.log(`[watch] [2/3] Rebuilding manifest...`);
-    const manifestResult = spawnSync("npm", ["run", "manifest"], {
-      stdio: "inherit",
-      timeout: TIMEOUT_MS,
-      shell: true,
+    const ok = run("python3", ["scripts/transcribe.py", inputPath, transcriptOut], {
+      timeout: TRANSCRIBE_TIMEOUT_MS,
     });
 
-    if (manifestResult.status !== 0 || manifestResult.error) {
-      const reason = manifestResult.error?.message ?? `exit ${manifestResult.status}`;
-      console.error(`[watch] [FAIL] Manifest — ${reason}`);
-      console.error(`[watch]        Retry: npm run manifest && npm run render:multi`);
-      failed.add(file);
-      continue;
+    if (ok) {
+      transcribed.push(file);
+    } else {
+      console.error(`[watch] [FAIL] Transcribe failed for ${file} — skipping, will retry next drop`);
+      transcribeFailed.push(file);
     }
+  }
 
-    // Step 3 — render
-    console.log(`[watch] [3/3] Rendering...`);
-    const renderResult = spawnSync("npm", ["run", "render:multi"], {
-      stdio: "inherit",
-      timeout: TIMEOUT_MS,
-      shell: true,
-    });
+  if (transcribed.length === 0 && transcribeFailed.length > 0) {
+    console.error(`[watch] All clips failed transcription — skipping manifest + render`);
+    return;
+  }
 
-    if (renderResult.status !== 0 || renderResult.error) {
-      const reason = renderResult.error?.message ?? `exit ${renderResult.status}`;
-      console.error(`[watch] [FAIL] Render — ${reason}`);
-      console.error(`[watch]        Retry: npm run render:multi`);
-      failed.add(file);
-      continue;
-    }
+  // ── Step 2: Rebuild manifest once ────────────────────────────────────────
+  console.log(`[watch] [manifest] Rebuilding for ${transcribed.length} clip(s)...`);
+  const manifestOk = run("npm", ["run", "manifest"], {
+    timeout: MANIFEST_TIMEOUT_MS,
+    shell: true,
+  });
 
-    // Success — move source clip to input/processed/
+  if (!manifestOk) {
+    console.error(`[watch] [FAIL] Manifest build failed — retry: npm run manifest`);
+    return;
+  }
+
+  // ── Step 3: Render once ───────────────────────────────────────────────────
+  console.log(`[watch] [render] Starting render...`);
+  const renderOk = run("npm", ["run", "render:multi"], {
+    timeout: RENDER_TIMEOUT_MS,
+    shell: true,
+  });
+
+  if (!renderOk) {
+    console.error(`[watch] [FAIL] Render failed — retry: npm run render:multi`);
+    return;
+  }
+
+  // ── Step 3b: Update style memory ─────────────────────────────────────────
+  run("node", ["scripts/update-style-memory.mjs"], { timeout: 10_000 });
+
+  // ── Step 4: Move successfully transcribed clips to processed/ ────────────
+  for (const file of transcribed) {
     try {
       renameSync(`input/${file}`, `input/processed/${file}`);
+      done.add(file);
     } catch {
-      // Non-fatal — file may have been moved externally
+      done.add(file); // file may have been moved externally — still mark done
     }
-
-    console.log(`[watch] [DONE] output/multi.mp4`);
-
-    // Auto-open on macOS (fail silently if unavailable)
-    spawnSync("open", ["output/multi.mp4"], { stdio: "ignore" });
   }
+
+  // ── Batch summary ─────────────────────────────────────────────────────────
+  console.log(`\n[watch] ${ts()} ── Batch complete ──`);
+  console.log(`[watch]   ✓ processed : ${transcribed.length}`);
+  if (transcribeFailed.length > 0) {
+    console.log(`[watch]   ✗ failed    : ${transcribeFailed.length} (${transcribeFailed.join(", ")})`);
+    console.log(`[watch]     Re-copy failed files into input/ to retry.`);
+  }
+  console.log(`[watch]   → output/multi.mp4`);
+
+  // Auto-open on macOS
+  spawnSync("open", ["output/multi.mp4"], { stdio: "ignore" });
+
 }, POLL_MS);

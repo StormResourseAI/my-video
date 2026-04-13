@@ -23,14 +23,19 @@
     "typescript": "5.9.3"
   },
   "scripts": {
+    "preset": "node scripts/use-preset.mjs",
     "setup": "node scripts/setup.mjs",
     "dev": "remotion studio",
     "build": "remotion bundle",
     "render": "remotion render MyComp output/video.mp4",
     "render:multi": "remotion render MultiClip output/multi.mp4",
+    "render:variants": "remotion render MultiClip-A output/multi-a.mp4 && remotion render MultiClip-B output/multi-b.mp4 && remotion render MultiClip-C output/multi-c.mp4",
+    "render:pack": "remotion render MultiClip-A output/multi-a.mp4 && remotion render MultiClip-B output/multi-b.mp4",
+    "deliver": "node scripts/package-delivery.mjs",
     "manifest": "node scripts/build-manifest.mjs",
     "watch": "node scripts/watch.mjs",
-    "beats": "python3 scripts/extract_beats.py",
+    "beats": "python3 scripts/extract_beats.py input/music.mp3",
+    "broll:match": "node scripts/build-broll-manifest.mjs",
     "upgrade": "remotion upgrade",
     "lint": "eslint src && tsc"
   },

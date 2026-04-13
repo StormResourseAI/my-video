@@ -1,0 +1,50 @@
+{
+  "brand": {
+    "color": "#0EA5E9",
+    "backgroundColor": "#111827",
+    "fontFamily": "sans-serif",
+    "hookText": "Watch this.",
+    "handle": "@client-b"
+  },
+  "caption": {
+    "fontSize": 38,
+    "fontWeight": 700,
+    "backgroundColor": "rgba(0,0,0,0.6)",
+    "color": "#f0f9ff",
+    "bottomOffset": 360
+  },
+  "pacing": {
+    "startTrimSec": 0.5,
+    "endTrimSec": 0.4,
+    "maxClipSec": 5,
+    "minClipSec": 2
+  },
+  "beatSync": {
+    "enabled": false,
+    "snapWindowSec": 1.5
+  },
+  "transition": {
+    "enabled": true,
+    "durationSec": 0.4,
+    "scale": false
+  },
+  "hook": {
+    "enabled": false,
+    "text": "Watch this.",
+    "durationSec": 1,
+    "position": "center",
+    "fontSize": 52,
+    "backgroundColor": "rgba(0,0,0,0.5)"
+  },
+  "audio": {
+    "musicVolume": 0.35,
+    "duckedVolume": 0.1,
+    "duckingEnabled": false
+  },
+  "selection": {
+    "mode": "top",
+    "topN": 6,
+    "minScore": -10,
+    "hookEnabled": false
+  }
+}

@@ -1,0 +1,23 @@
+[
+  {
+    "id": "a",
+    "hookText": null,
+    "clipOrder": "original",
+    "clipLimit": null,
+    "maxClipSec": null
+  },
+  {
+    "id": "b",
+    "hookText": "Watch till the end.",
+    "clipOrder": "reverse",
+    "clipLimit": null,
+    "maxClipSec": 5
+  },
+  {
+    "id": "c",
+    "hookText": "Top moments only.",
+    "clipOrder": "score-desc",
+    "clipLimit": 4,
+    "maxClipSec": 4
+  }
+]

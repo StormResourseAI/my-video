@@ -1,14 +1,21 @@
 import { useCurrentFrame } from "remotion";
 import type { FrameCue } from "../lib/transcript";
+import type { CaptionConfig } from "../lib/profile";
+import { DEFAULT_PROFILE } from "../lib/profile";
 
 type Props = {
   cues: FrameCue[];
-  trimBefore: number; // frames — aligns local timeline back to source video position
+  trimBefore: number;
+  captionConfig?: CaptionConfig;
 };
 
-export const ClipCaption: React.FC<Props> = ({ cues, trimBefore }) => {
+export const ClipCaption: React.FC<Props> = ({
+  cues,
+  trimBefore,
+  captionConfig,
+}) => {
+  const cfg = captionConfig ?? DEFAULT_PROFILE.caption;
   const localFrame = useCurrentFrame();
-  // Sequence resets frame to 0 at clip start; add trimBefore to get source position
   const sourceFrame = localFrame + trimBefore;
   const cue = cues.find((c) => sourceFrame >= c.start && sourceFrame <= c.end);
 
@@ -18,7 +25,7 @@ export const ClipCaption: React.FC<Props> = ({ cues, trimBefore }) => {
     <div
       style={{
         position: "absolute",
-        bottom: 320,
+        bottom: cfg.bottomOffset,
         left: 0,
         right: 0,
         display: "flex",
@@ -29,10 +36,10 @@ export const ClipCaption: React.FC<Props> = ({ cues, trimBefore }) => {
     >
       <div
         style={{
-          backgroundColor: "rgba(0,0,0,0.75)",
-          color: "#ffffff",
-          fontSize: 44,
-          fontWeight: 700,
+          backgroundColor: cfg.backgroundColor,
+          color: cfg.color,
+          fontSize: cfg.fontSize,
+          fontWeight: cfg.fontWeight,
           textAlign: "center",
           padding: "12px 24px",
           borderRadius: 8,

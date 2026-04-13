@@ -3,41 +3,55 @@ import { Video } from "@remotion/media";
 import rawManifest from "../data/manifest.json";
 import rawBeats from "../data/beats.json";
 import rawProfile from "../data/style-profile.json";
-import rawBroll from "../data/broll.json";
+import rawVariants from "../data/variants.json";
 import type { ManifestData } from "./lib/manifest";
 import type { BeatsData } from "./lib/beats";
-import type { BrollData } from "./lib/broll";
-import { getBrollMatchesForClip } from "./lib/broll";
 import { resolveProfile } from "./lib/profile";
 import { computeClipTrim } from "./lib/trimming";
 import { buildBeatTimeline } from "./lib/beatSync";
 import { parseCaptions } from "./lib/transcript";
 import { ClipCaption } from "./components/ClipCaption";
 import { ClipTransition } from "./components/ClipTransition";
-import { BrollOverlay } from "./components/BrollOverlay";
 import { HookOverlay } from "./components/HookOverlay";
 import { MusicTrack } from "./components/MusicTrack";
+import type { VariantConfig } from "./lib/variants";
+import { applyVariantClips } from "./lib/variants";
 
-const manifest  = rawManifest as ManifestData;
-const brollData  = rawBroll as BrollData;
-const beatsData  = (rawBeats as BeatsData).beats.length > 0
+const baseManifest = rawManifest as ManifestData;
+const beatsData = (rawBeats as BeatsData).beats.length > 0
   ? (rawBeats as BeatsData)
   : null;
-const profile = resolveProfile(rawProfile);
+const baseProfile = resolveProfile(rawProfile);
+const variants = rawVariants as VariantConfig[];
 
-export const MultiClipComposition = () => {
+type Props = { variantIndex: number };
+
+export const MultiClipVariantComposition: React.FC<Props> = ({ variantIndex }) => {
   const { fps } = useVideoConfig();
+  const variant = variants[variantIndex] ?? variants[0];
 
-  if (manifest.clips.length === 0) {
+  // Apply variant overrides
+  const clips = applyVariantClips(baseManifest.clips, variant);
+  const manifest: ManifestData = { ...baseManifest, clips };
+
+  const pacing = variant.maxClipSec !== null
+    ? { ...baseProfile.pacing, maxClipSec: variant.maxClipSec }
+    : baseProfile.pacing;
+
+  const hookConfig = variant.hookText !== null
+    ? { ...baseProfile.hook, text: variant.hookText }
+    : baseProfile.hook;
+
+  if (clips.length === 0) {
     return (
       <AbsoluteFill
         style={{
-          backgroundColor: profile.brand.backgroundColor,
+          backgroundColor: baseProfile.brand.backgroundColor,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           color: "#555",
-          fontFamily: profile.brand.fontFamily,
+          fontFamily: baseProfile.brand.fontFamily,
           fontSize: 36,
         }}
       >
@@ -48,24 +62,24 @@ export const MultiClipComposition = () => {
   }
 
   const snappedDurations = buildBeatTimeline(
-    manifest.clips,
+    clips,
     beatsData,
     fps,
-    profile.beatSync,
-    profile.pacing
+    baseProfile.beatSync,
+    pacing
   );
 
-  const tf = profile.transition.enabled
-    ? Math.round(profile.transition.durationSec * fps)
+  const tf = baseProfile.transition.enabled
+    ? Math.round(baseProfile.transition.durationSec * fps)
     : 0;
 
-  const lastIndex = manifest.clips.length - 1;
+  const lastIndex = clips.length - 1;
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#000" }}>
       <Series>
-        {manifest.clips.map((clip, i) => {
-          const { trimBefore } = computeClipTrim(clip, fps, profile.pacing);
+        {clips.map((clip, i) => {
+          const { trimBefore } = computeClipTrim(clip, fps, pacing);
           const durationFrames = snappedDurations[i];
           const trimAfter = Math.min(
             trimBefore + durationFrames,
@@ -74,7 +88,6 @@ export const MultiClipComposition = () => {
           const cues = clip.transcript
             ? parseCaptions(clip.transcript)
             : null;
-          const brollMatches = getBrollMatchesForClip(clip.file, brollData);
 
           return (
             <Series.Sequence
@@ -88,7 +101,7 @@ export const MultiClipComposition = () => {
                 transitionFrames={tf}
                 isFirst={i === 0}
                 isLast={i === lastIndex}
-                withScale={profile.transition.scale}
+                withScale={baseProfile.transition.scale}
               >
                 <Video
                   src={staticFile(`clips/${clip.file}`)}
@@ -100,14 +113,7 @@ export const MultiClipComposition = () => {
                   <ClipCaption
                     cues={cues}
                     trimBefore={trimBefore}
-                    captionConfig={profile.caption}
-                  />
-                )}
-                {brollMatches.length > 0 && (
-                  <BrollOverlay
-                    matches={brollMatches}
-                    trimBefore={trimBefore}
-                    fps={fps}
+                    captionConfig={baseProfile.caption}
                   />
                 )}
               </ClipTransition>
@@ -115,11 +121,11 @@ export const MultiClipComposition = () => {
           );
         })}
       </Series>
-      <HookOverlay config={profile.hook} fps={fps} />
+      <HookOverlay config={hookConfig} fps={fps} />
       <MusicTrack
         manifest={manifest}
-        audioConfig={profile.audio}
-        pacingConfig={profile.pacing}
+        audioConfig={baseProfile.audio}
+        pacingConfig={pacing}
         fps={fps}
         snappedDurations={snappedDurations}
         transitionFrames={tf}

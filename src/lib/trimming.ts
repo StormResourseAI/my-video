@@ -1,9 +1,6 @@
 import type { ClipEntry } from "./manifest";
-
-const DEFAULT_START_TRIM_SEC = 0.3;
-const DEFAULT_END_TRIM_SEC = 0.3;
-const MIN_CLIP_SEC = 1.5;
-const DEFAULT_MAX_CLIP_SEC = 7;
+import type { PacingConfig } from "./profile";
+import { DEFAULT_PROFILE } from "./profile";
 
 export type ClipTrim = {
   trimBefore: number;   // frames — absolute start position in source video
@@ -11,26 +8,29 @@ export type ClipTrim = {
   durationFrames: number; // trimAfter - trimBefore
 };
 
-export function computeClipTrim(clip: ClipEntry, fps: number): ClipTrim {
+export function computeClipTrim(
+  clip: ClipEntry,
+  fps: number,
+  pacing?: PacingConfig
+): ClipTrim {
+  const p = pacing ?? DEFAULT_PROFILE.pacing;
   const { durationSec, usableStartSec, usableEndSec, maxClipSec } = clip;
 
-  const startSec = usableStartSec ?? DEFAULT_START_TRIM_SEC;
-  const rawEndSec = usableEndSec ?? durationSec - DEFAULT_END_TRIM_SEC;
-  const maxSec = maxClipSec ?? DEFAULT_MAX_CLIP_SEC;
+  const startSec = usableStartSec ?? p.startTrimSec;
+  const rawEndSec = usableEndSec ?? durationSec - p.endTrimSec;
+  const maxSec = maxClipSec ?? p.maxClipSec;
 
-  // Cap by maxClipSec
   const cappedEndSec = Math.min(rawEndSec, startSec + maxSec);
 
   let effectiveStart = startSec;
   let effectiveEnd = cappedEndSec;
 
   // Fall back to full duration if usable range is too short
-  if (effectiveEnd - effectiveStart < MIN_CLIP_SEC) {
+  if (effectiveEnd - effectiveStart < p.minClipSec) {
     effectiveStart = 0;
     effectiveEnd = durationSec;
   }
 
-  // Clamp to actual video bounds
   effectiveStart = Math.max(0, effectiveStart);
   effectiveEnd = Math.min(durationSec, effectiveEnd);
 

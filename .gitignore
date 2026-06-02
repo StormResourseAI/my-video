@@ -54,3 +54,5 @@ tmp/
 
 # Render-time staged media.
 /public/runtime-selects/
+.claude/
+.claude/settings.local.json

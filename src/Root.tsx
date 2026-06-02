@@ -2,6 +2,7 @@ import "./index.css";
 import { Composition, type CalculateMetadataFunction } from "remotion";
 import { MyComposition } from "./Composition";
 import { MultiClipComposition } from "./MultiClipComposition";
+import { DronePromo, TOTAL_FRAMES as DRONE_PROMO_FRAMES } from "./DronePromo";
 import { MultiClipVariantComposition } from "./MultiClipVariantComposition";
 import {
   VerticalCoreComposition,
@@ -76,6 +77,14 @@ const calcVerticalCoreMetadata: CalculateMetadataFunction<VerticalCoreProps> = (
 export const RemotionRoot: React.FC = () => {
   return (
     <>
+      <Composition
+        id="DronePromo"
+        component={DronePromo}
+        durationInFrames={DRONE_PROMO_FRAMES}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
       <Composition
         id="MyComp"
         component={MyComposition}

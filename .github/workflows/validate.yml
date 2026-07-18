@@ -1,0 +1,54 @@
+name: Validate
+
+on:
+  pull_request:
+    branches: [v1-top-5-skills]
+  push:
+    branches: [v1-top-5-skills]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.0"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            studio/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Root validation
+        run: |
+          npx eslint src
+          npx tsc --noEmit
+
+      - name: Install studio dependencies
+        working-directory: studio
+        run: npm ci --no-audit --no-fund
+
+      - name: Studio validation
+        working-directory: studio
+        run: |
+          npm run lint
+          npm run typecheck
+          npm test -- --run
+          npm run build
+
+      - name: Repository cleanliness
+        run: |
+          git diff --check
+          git diff --exit-code

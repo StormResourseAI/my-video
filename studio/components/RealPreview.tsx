@@ -11,9 +11,10 @@ import { VerticalCoreComposition } from "../../src/VerticalCoreComposition";
 import type { PlayerConfig } from "@/lib/projectAdapter";
 import { useStudioStore } from "@/state/studioStore";
 
-// Boot assertion (plan §10): the Player and the composition must share one
-// remotion instance at the exact engine version. A mismatch means module
-// resolution regressed (duplicate copies) — fail conspicuously, not subtly.
+// Boot assertion (plan §10): guards VERSION DRIFT only — with root and studio
+// copies at the same version it cannot see duplicate-instance regressions
+// (those fail loudly in the Player itself; single-instance is enforced by the
+// tsconfig paths pin and verified against the emitted bundle).
 export const EXPECTED_REMOTION_VERSION = "4.0.445";
 
 export default function RealPreview({

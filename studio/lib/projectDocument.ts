@@ -125,9 +125,11 @@ export function validateProps(raw: unknown): VerticalCorePropsV1 | null {
   if (!isRaw(raw)) return null;
   const backgroundColor = asStr(raw.backgroundColor, 9);
   if (backgroundColor === null || !COLOR_RE.test(backgroundColor)) return null;
+  // The engine writes `title: metadata.title ?? null` and watcher metadata
+  // carries "" — both mean "untitled" (scripts/render-vertical.mjs:123).
   const title =
-    raw.title === null ? null : asStr(raw.title, MAX_NAME);
-  if (raw.title !== null && title === null) return null;
+    raw.title === null || raw.title === "" ? null : asStr(raw.title, MAX_NAME);
+  if (raw.title !== null && raw.title !== "" && title === null) return null;
   const titleFrames = asInt(raw.titleFrames, 0, MAX_FRAMES);
   const transitionFrames = asInt(raw.transitionFrames, 0, MAX_FRAMES);
   if (titleFrames === null || transitionFrames === null) return null;

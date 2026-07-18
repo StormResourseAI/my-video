@@ -90,11 +90,28 @@ export async function listProjects(): Promise<ProjectSummaryV1[]> {
       projectId: slug,
       projectName: name,
       clientSlug,
-      previewReady: propsPath !== null,
+      previewReady: await isPreviewReady(slug, propsPath, roots.media),
       cacheTimestamp: cacheMtime === null ? null : cacheMtime.toISOString(),
     });
   }
   return summaries;
+}
+
+/** Plan §7 semantics: previewReady = valid props cache AND every referenced
+ *  clip staged. */
+async function isPreviewReady(
+  slug: string,
+  propsPath: string | null,
+  mediaRoot: string | null,
+): Promise<boolean> {
+  const rawProps = await readJsonOrNull(propsPath);
+  if (rawProps === null) return false;
+  const props = validateProps(rewriteForValidation(rawProps, slug));
+  if (props === null) return false;
+  for (const clip of props.clips) {
+    if ((await resolveUnder(mediaRoot, slug, clip.file)) === null) return false;
+  }
+  return true;
 }
 
 async function computeFreshness(

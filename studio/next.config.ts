@@ -5,7 +5,6 @@ const studioDir = import.meta.dirname;
 // The real engine composition (../src/VerticalCoreComposition.tsx) compiles
 // into the studio bundle, so the workspace root must span the repository.
 const repoRoot = path.resolve(studioDir, "..");
-const local = (pkg: string) => path.resolve(studioDir, "node_modules", pkg);
 
 const nextConfig: NextConfig = {
   // Single-instance rule (plan §10): ../src would resolve bare

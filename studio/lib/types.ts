@@ -3,6 +3,9 @@ export type AspectRatio = "16:9" | "9:16" | "1:1" | "4:5";
 /** Demo-only panel data state. Phase 1 has no real data source. */
 export type PanelState = "normal" | "empty" | "loading" | "error";
 
+/** Lifecycle of data fetched from the read-only Studio API. */
+export type RemoteStatus = "idle" | "loading" | "loaded" | "error";
+
 export type MediaKind = "video" | "photo" | "audio" | "generated";
 export type MediaFilter = "all" | MediaKind;
 

@@ -3,9 +3,115 @@
 import { CLIPS, TIMELINE_LENGTH, TRACKS } from "@/fixtures";
 import type { TrackControlState } from "@/lib/types";
 import { useStudioStore } from "@/state/studioStore";
+import { Chip } from "./ui";
 
 const BASE_PX_PER_SEC = 26;
 const HEADER_WIDTH = 168;
+
+/** Read-only sequence view of the real composition: one video lane derived
+ *  from the validated props, laid out on the engine's overlap rule. */
+function RealTimeline() {
+  const doc = useStudioStore((s) => s.document);
+  const zoom = useStudioStore((s) => s.zoom);
+  const setZoom = useStudioStore((s) => s.setZoom);
+  const playerFrame = useStudioStore((s) => s.playerFrame);
+
+  const props = doc?.props ?? null;
+  const composition = doc?.composition ?? null;
+  const fps = composition?.fps ?? 30;
+  const pxPerSec = BASE_PX_PER_SEC * zoom;
+  const durationSec = (composition?.durationInFrames ?? 0) / fps;
+  const laneWidth = Math.max(1, durationSec * pxPerSec);
+  const playheadX = (playerFrame / fps) * pxPerSec;
+
+  let cursor = 0;
+  const blocks =
+    props?.clips.map((clip, i) => {
+      const startFrames = cursor;
+      cursor += clip.durationInFrames - (i < props.clips.length - 1 ? props.transitionFrames : 0);
+      return { clip, startFrames, index: i };
+    }) ?? [];
+
+  return (
+    <section
+      aria-label="Timeline"
+      className="flex h-full min-h-0 flex-col border-t border-edge bg-panel"
+    >
+      <div className="flex items-center justify-between border-b border-edge px-3 py-1.5">
+        <div className="flex items-center gap-2">
+          <h2 className="text-[11px] font-bold tracking-widest text-muted uppercase">Timeline</h2>
+          <Chip tone="warn">Read-only</Chip>
+        </div>
+        <div role="group" aria-label="Timeline zoom" className="flex items-center gap-1">
+          <button
+            type="button"
+            aria-label="Zoom out"
+            onClick={() => setZoom(zoom / 1.25)}
+            className="h-6 w-6 rounded bg-raised text-muted hover:text-text"
+          >
+            −
+          </button>
+          <span className="w-12 text-center font-mono text-[11px] text-muted">
+            {Math.round(zoom * 100)}%
+          </span>
+          <button
+            type="button"
+            aria-label="Zoom in"
+            onClick={() => setZoom(zoom * 1.25)}
+            className="h-6 w-6 rounded bg-raised text-muted hover:text-text"
+          >
+            +
+          </button>
+        </div>
+      </div>
+
+      {props === null ? (
+        <div className="m-3 rounded-md border border-dashed border-edge p-4 text-center text-muted">
+          The clip sequence appears here once a previewable project loads.
+        </div>
+      ) : (
+        <div className="min-h-0 flex-1 overflow-auto">
+          <div className="relative" style={{ width: HEADER_WIDTH + laneWidth }}>
+            <div className="flex h-12 border-b border-edge/60">
+              <div
+                className="sticky left-0 z-10 flex shrink-0 items-center gap-1.5 border-r border-edge bg-panel px-2"
+                style={{ width: HEADER_WIDTH }}
+              >
+                <span className="font-mono text-[11px] font-bold text-accent">V1</span>
+                <span className="truncate text-[11px] text-muted">Staged clips</span>
+              </div>
+              <div className="relative" style={{ width: laneWidth }}>
+                {blocks.map(({ clip, startFrames, index }) => (
+                  <div
+                    key={`${clip.file}-${index}`}
+                    className="absolute top-1 bottom-1 overflow-hidden rounded-md border border-black/30 bg-accent-soft px-1.5"
+                    style={{
+                      left: (startFrames / fps) * pxPerSec,
+                      width: Math.max(2, (clip.durationInFrames / fps) * pxPerSec),
+                    }}
+                  >
+                    <span className="block truncate text-[10px] font-semibold">{clip.file}</span>
+                    <span className="block truncate font-mono text-[9px] text-muted">
+                      {clip.durationInFrames}f
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div
+              data-testid="playhead"
+              aria-hidden
+              className="pointer-events-none absolute top-0 bottom-0 z-30 w-px bg-danger"
+              style={{ left: HEADER_WIDTH + playheadX }}
+            >
+              <div className="-ml-[5px] h-0 w-0 border-x-[5px] border-t-[6px] border-x-transparent border-t-danger" />
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
 
 const TRACK_TOGGLES: { key: keyof TrackControlState; label: string; glyph: string }[] = [
   { key: "locked", label: "Lock", glyph: "🔒" },
@@ -14,6 +120,7 @@ const TRACK_TOGGLES: { key: keyof TrackControlState; label: string; glyph: strin
 ];
 
 export default function Timeline() {
+  const realMode = useStudioStore((s) => s.activeRealProjectId) !== null;
   const zoom = useStudioStore((s) => s.zoom);
   const setZoom = useStudioStore((s) => s.setZoom);
   const currentTime = useStudioStore((s) => s.currentTime);
@@ -26,6 +133,8 @@ export default function Timeline() {
   const laneWidth = TIMELINE_LENGTH * pxPerSec;
   const playheadX = (currentTime % TIMELINE_LENGTH) * pxPerSec;
   const tickCount = Math.floor(TIMELINE_LENGTH / 5);
+
+  if (realMode) return <RealTimeline />;
 
   return (
     <section

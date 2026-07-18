@@ -28,7 +28,11 @@
     "paths": {
       "@/*": [
         "./*"
-      ]
+      ],
+      "remotion": ["./node_modules/remotion"],
+      "remotion/*": ["./node_modules/remotion/*"],
+      "@remotion/media": ["./node_modules/@remotion/media"],
+      "@remotion/media/*": ["./node_modules/@remotion/media/*"]
     }
   },
   "include": [

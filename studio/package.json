@@ -12,6 +12,8 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@remotion/media": "4.0.445",
+    "@remotion/player": "4.0.445",
     "next": "16.2.10",
     "react": "19.2.7",
     "react-dom": "19.2.7",

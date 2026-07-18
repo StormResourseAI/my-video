@@ -7,7 +7,8 @@
   --color-edge: #262b3a;
   --color-text: #e6e9f2;
   --color-muted: #8b93a7;
-  --color-accent: #5b8cff;
+  /* ≥4.5:1 on accent-soft/panel/raised/ink — verified for 10–11px active text. */
+  --color-accent: #6f9bff;
   --color-accent-soft: #22304f;
   --color-ok: #46c48c;
   --color-warn: #e4b34a;

@@ -7,10 +7,25 @@ import { resetStore } from "./helpers";
 
 beforeEach(resetStore);
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe("phase 1 safety guarantees", () => {
-  it("never calls fetch during shell interactions", async () => {
+  it("never performs network egress during shell interactions", async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
+    // Any non-fetch egress attempt throws and fails the test immediately.
+    for (const api of ["WebSocket", "XMLHttpRequest", "EventSource"]) {
+      vi.stubGlobal(
+        api,
+        class {
+          constructor() {
+            throw new Error(`${api} egress attempted in Phase 1 shell`);
+          }
+        },
+      );
+    }
     const user = userEvent.setup();
     render(<StudioShell />);
 
@@ -23,13 +38,16 @@ describe("phase 1 safety guarantees", () => {
     await user.click(screen.getByRole("button", { name: "Media panel" }));
 
     expect(fetchSpy).not.toHaveBeenCalled();
-    vi.unstubAllGlobals();
   });
 
   it("studio runtime source imports no filesystem, child-process, or network modules", () => {
     const RUNTIME_DIRS = ["app", "components", "state", "lib", "fixtures"];
+    // Matches from/require/dynamic-import AND bare side-effect imports.
     const FORBIDDEN =
-      /(?:from\s+|require\(|import\()\s*["'](?:node:)?(fs|fs\/promises|child_process|net|http|https|dgram|worker_threads)["']/;
+      /(?:from\s+|require\(|import\(|import\s+)["'](?:node:)?(fs|fs\/promises|child_process|net|http|https|http2|tls|dns|dgram|os|worker_threads)["']/;
+
+    // Browser-side egress tokens the module scan above cannot see.
+    const BROWSER_EGRESS = /\b(fetch\s*\(|new\s+(WebSocket|XMLHttpRequest|EventSource)\b)/;
 
     const offenders: string[] = [];
     const scan = (dir: string) => {
@@ -38,7 +56,8 @@ describe("phase 1 safety guarantees", () => {
         if (statSync(full).isDirectory()) {
           scan(full);
         } else if (/\.(ts|tsx|js|mjs|cjs)$/.test(entry)) {
-          if (FORBIDDEN.test(readFileSync(full, "utf8"))) offenders.push(full);
+          const source = readFileSync(full, "utf8");
+          if (FORBIDDEN.test(source) || BROWSER_EGRESS.test(source)) offenders.push(full);
         }
       }
     };

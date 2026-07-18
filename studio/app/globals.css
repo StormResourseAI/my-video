@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #0b0d12;
+  --color-panel: #12151d;
+  --color-raised: #1a1e29;
+  --color-edge: #262b3a;
+  --color-text: #e6e9f2;
+  --color-muted: #8b93a7;
+  --color-accent: #5b8cff;
+  --color-accent-soft: #22304f;
+  --color-ok: #46c48c;
+  --color-warn: #e4b34a;
+  --color-danger: #e05d5d;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+html,
+body {
+  height: 100%;
+  background: var(--color-ink);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-edge);
+  border-radius: 5px;
+  border: 2px solid var(--color-panel);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Audio waveform placeholder — pure CSS, no media. */
+.waveform {
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.35) 0 2px,
+    rgba(255, 255, 255, 0.12) 2px 4px,
+    rgba(255, 255, 255, 0.28) 4px 6px,
+    rgba(255, 255, 255, 0.08) 6px 9px
+  );
+  -webkit-mask-image: linear-gradient(180deg, transparent 8%, #000 35%, #000 65%, transparent 92%);
+  mask-image: linear-gradient(180deg, transparent 8%, #000 35%, #000 65%, transparent 92%);
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.skeleton {
+  background: var(--color-raised);
+  animation: pulse-soft 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}

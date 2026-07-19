@@ -102,11 +102,11 @@ describe("real project discovery and preview", () => {
 
     // Media browser shows the real read-only assets.
     const media = screen.getByRole("region", { name: "Media browser" });
-    expect(within(media).getByRole("option", { name: /01_open\.mp4/ })).toBeInTheDocument();
+    expect(within(media).getByRole("button", { name: /01_open\.mp4/ })).toBeInTheDocument();
 
     // Inspector shows real project metadata.
     const inspector = screen.getByRole("complementary", { name: "Inspector" });
-    expect(within(inspector).getByText("299 frames")).toBeInTheDocument();
+    expect(within(inspector).getByText(/299 frames/)).toBeInTheDocument();
 
     // Timeline shows the read-only derived sequence.
     const timeline = screen.getByRole("region", { name: "Timeline" });
@@ -175,18 +175,12 @@ describe("real project discovery and preview", () => {
     );
   });
 
-  it("keeps the clearly-labeled mock shell reachable and separate", async () => {
+  it("automatically selects the first preview-ready real project without mock fallback", async () => {
     stubApi();
-    const user = userEvent.setup();
     render(<StudioShell />);
-
-    const nav = screen.getByRole("complementary", { name: "Project navigation" });
-    await within(nav).findByRole("button", { name: /Demo Vertical Batch/ });
-    await user.click(within(nav).getByRole("button", { name: /Airbnb Cinematic Edit/ }));
-
     const preview = screen.getByRole("region", { name: "Preview monitor" });
-    expect(within(preview).getAllByText(/Mock preview/).length).toBeGreaterThan(0);
-    expect(within(preview).queryByTestId("real-player")).not.toBeInTheDocument();
+    expect(await within(preview).findByTestId("real-player")).toBeInTheDocument();
+    expect(within(preview).queryByText(/Mock preview/)).not.toBeInTheDocument();
   });
 
   it("surfaces a project-list failure with retry", async () => {

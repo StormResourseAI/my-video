@@ -2,22 +2,13 @@
 
 import { useEffect, useRef } from "react";
 import type { PlayerRef } from "@remotion/player";
-import { PROJECTS, TIMELINE_LENGTH } from "@/fixtures";
 import { deriveEngineProps, type StudioDraftV1 } from "@/lib/draftDocument";
 import { formatTimecode } from "@/lib/format";
 import { toPlayerConfig, type PlayerConfig } from "@/lib/projectAdapter";
 import type { ProjectDocumentV1 } from "@/lib/projectDocument";
-import type { AspectRatio } from "@/lib/types";
 import { useStudioStore, type DraftWorking } from "@/state/studioStore";
 import RealPreview from "./RealPreview";
 import { Chip } from "./ui";
-
-const RATIOS: { value: AspectRatio; css: string }[] = [
-  { value: "16:9", css: "16 / 9" },
-  { value: "9:16", css: "9 / 16" },
-  { value: "1:1", css: "1 / 1" },
-  { value: "4:5", css: "4 / 5" },
-];
 
 const SCALES = [0.5, 0.75, 1] as const;
 
@@ -85,19 +76,14 @@ function RealStatusPanel({
 }
 
 export default function PreviewMonitor() {
-  const activeProjectId = useStudioStore((s) => s.activeProjectId);
-  const aspectRatio = useStudioStore((s) => s.aspectRatio);
-  const playing = useStudioStore((s) => s.playing);
-  const currentTime = useStudioStore((s) => s.currentTime);
   const safeZones = useStudioStore((s) => s.safeZones);
   const fullscreen = useStudioStore((s) => s.fullscreen);
-  const setAspectRatio = useStudioStore((s) => s.setAspectRatio);
-  const togglePlay = useStudioStore((s) => s.togglePlay);
-  const tick = useStudioStore((s) => s.tick);
   const toggleSafeZones = useStudioStore((s) => s.toggleSafeZones);
   const toggleFullscreen = useStudioStore((s) => s.toggleFullscreen);
 
   const activeRealProjectId = useStudioStore((s) => s.activeRealProjectId);
+  const realProjects = useStudioStore((s) => s.realProjects);
+  const realProjectsStatus = useStudioStore((s) => s.realProjectsStatus);
   const doc = useStudioStore((s) => s.document);
   const documentStatus = useStudioStore((s) => s.documentStatus);
   const documentError = useStudioStore((s) => s.documentError);
@@ -141,20 +127,11 @@ export default function PreviewMonitor() {
     : doc !== null
       ? toPlayerConfig(doc)
       : null;
-  const project = PROJECTS.find((p) => p.id === activeProjectId);
-  const ratio = RATIOS.find((r) => r.value === aspectRatio) ?? RATIOS[0];
-  const displayTime = currentTime % TIMELINE_LENGTH;
-
-  // Mock playback clock — mock mode only; real mode mirrors the Player.
-  useEffect(() => {
-    if (!playing || realMode) return;
-    const id = setInterval(() => tick(0.1), 100);
-    return () => clearInterval(id);
-  }, [playing, realMode, tick]);
-
   // Poll the active render job until it reaches a terminal state.
+  const renderMatchesDraft =
+    renderJob !== null && draft !== null && renderJob.draftVersion === draft.version;
   const renderActive =
-    renderJob !== null && (renderJob.status === "queued" || renderJob.status === "running");
+    renderMatchesDraft && (renderJob.status === "queued" || renderJob.status === "running");
   useEffect(() => {
     if (!renderActive) return;
     const id = setInterval(() => void refreshRenderJob(), 2000);
@@ -222,44 +199,6 @@ export default function PreviewMonitor() {
     </>
   );
 
-  const mockTransport = (
-    <>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          aria-label={playing ? "Pause" : "Play"}
-          aria-pressed={playing}
-          onClick={togglePlay}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-soft text-accent hover:brightness-125"
-        >
-          <span aria-hidden>{playing ? "❚❚" : "▶"}</span>
-        </button>
-        <output aria-label="Timecode" aria-live="off" className="font-mono text-sm tabular-nums">
-          {formatTimecode(displayTime)}
-        </output>
-      </div>
-
-      <div role="radiogroup" aria-label="Aspect ratio" className="flex gap-1">
-        {RATIOS.map((r) => (
-          <button
-            key={r.value}
-            type="button"
-            role="radio"
-            aria-checked={aspectRatio === r.value}
-            onClick={() => setAspectRatio(r.value)}
-            className={`rounded px-2 py-1 font-mono text-[11px] transition-colors ${
-              aspectRatio === r.value
-                ? "bg-accent-soft text-accent"
-                : "bg-raised text-muted hover:text-text"
-            }`}
-          >
-            {r.value}
-          </button>
-        ))}
-      </div>
-    </>
-  );
-
   return (
     <section
       aria-label="Preview monitor"
@@ -273,13 +212,8 @@ export default function PreviewMonitor() {
         ) : (
           <div className="flex min-w-0 items-center gap-2">
             <h2 className="truncate font-semibold">
-              {realMode ? activeRealProjectId : (project?.name ?? "Untitled")}
+              {realMode ? activeRealProjectId : "Select a real project"}
             </h2>
-            {!realMode && (
-              <span className="shrink-0 font-mono text-[11px] text-muted">
-                {project ? `${project.resolution} · ${project.fps} fps · ${project.duration}` : "—"}
-              </span>
-            )}
           </div>
         )}
         <div className="flex shrink-0 items-center gap-1.5">
@@ -355,12 +289,27 @@ export default function PreviewMonitor() {
               </button>
             </>
           )}
-          {realMode ? (
-            doc === null ? <Chip tone="warn">Read-only</Chip> : null
-          ) : (
-            <Chip tone="warn">Mock preview</Chip>
-          )}
+          {realMode && doc === null ? <Chip tone="warn">Read-only</Chip> : null}
         </div>
+      </div>
+      <div role="status" aria-live="polite" className="border-b border-edge bg-panel px-3 py-2 text-[11px]">
+        {!realMode && (realProjectsStatus === "idle" || realProjectsStatus === "loading")
+          ? "1 · SELECT PROJECT — Loading real local projects."
+          : !realMode && realProjectsStatus === "error"
+            ? "1 · SELECT PROJECT — Projects could not be loaded. Retry in the Projects panel."
+            : !realMode && realProjects.length === 0
+              ? "1 · SELECT PROJECT — No materialized projects available. Source files remain safe."
+              : !realMode
+                ? "1 · SELECT PROJECT — No preview-ready project is available. Materialize a project outside Studio."
+          : !draftMode
+            ? "2–3 · PREVIEW SOURCE — Preview the immutable source, then create a protected draft to edit."
+            : draftDirty
+              ? "4–5 · EDIT DRAFT — Unsaved changes. Save this draft version before rendering."
+              : renderMatchesDraft && renderJob?.status === "succeeded"
+                ? "7 · DOWNLOAD — MP4 ready for download."
+                : renderActive
+                  ? "6 · RENDER — Rendering locally. Keep Studio open."
+                  : "6 · RENDER — Saved draft is ready to render locally."}
       </div>
       {draftError !== null && (
         <p role="alert" className="border-b border-edge bg-danger/10 px-3 py-1.5 text-[11px] text-danger">
@@ -378,7 +327,9 @@ export default function PreviewMonitor() {
           aria-label="Render status"
           className="flex flex-wrap items-center gap-2 border-b border-edge px-3 py-1.5 text-[11px]"
         >
-          <span className="font-semibold uppercase tracking-widest text-muted">Render</span>
+          <span className="font-semibold uppercase tracking-widest text-muted">
+            {renderMatchesDraft ? "Render" : "Previous render"}
+          </span>
           <Chip
             tone={
               renderJob.status === "succeeded"
@@ -393,7 +344,10 @@ export default function PreviewMonitor() {
           <span className="font-mono text-muted">
             {renderJob.durationInFrames}f · draft v{renderJob.draftVersion}
           </span>
-          {renderJob.status === "succeeded" && (
+          {!renderMatchesDraft && (
+            <span className="text-warn">Draft v{draft?.version} requires a new render.</span>
+          )}
+          {renderMatchesDraft && renderJob.status === "succeeded" && (
             <a
               href={`/api/renders/${renderJob.renderId}/output`}
               download
@@ -414,7 +368,23 @@ export default function PreviewMonitor() {
       )}
 
       <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
-        {realMode && documentStatus === "loading" ? (
+        {!realMode && (realProjectsStatus === "idle" || realProjectsStatus === "loading") ? (
+          <div role="status" className="max-w-md rounded-md border border-dashed border-edge p-4 text-center text-muted">
+            Loading real local projects… No demo content is shown in operator mode.
+          </div>
+        ) : !realMode && realProjectsStatus === "error" ? (
+          <RealStatusPanel title="Projects could not be loaded." messages={["Retry in the Projects panel."]} />
+        ) : !realMode && realProjects.length === 0 ? (
+          <div role="status" className="max-w-md rounded-md border border-dashed border-edge p-4 text-center text-muted">
+            <p className="font-semibold text-text">No materialized projects available.</p>
+            <p className="mt-1">Source files remain safe. Materialize a project outside Studio, then Retry.</p>
+          </div>
+        ) : !realMode ? (
+          <div role="status" className="max-w-md rounded-md border border-dashed border-edge p-4 text-center text-muted">
+            <p className="font-semibold text-text">No preview-ready project is available.</p>
+            <p className="mt-1">Materialize a project outside Studio, then Retry.</p>
+          </div>
+        ) : documentStatus === "loading" ? (
           <div role="status" aria-label="Loading project" className="text-muted">
             Loading project…
           </div>
@@ -444,41 +414,21 @@ export default function PreviewMonitor() {
         ) : (
           <div
             data-testid="preview-canvas"
-            data-aspect={realMode ? "9:16" : aspectRatio}
+            data-aspect="9:16"
             data-fullscreen={fullscreen}
             data-real={realMode || undefined}
             className="relative rounded-md border border-edge bg-panel shadow-2xl"
             style={{
-              aspectRatio: realMode ? "9 / 16" : ratio.css,
-              ...(realMode
-                ? { height: `${previewScale * 100}%`, width: "auto" }
-                : aspectRatio === "16:9"
-                  ? { width: "100%", height: "auto", maxWidth: "calc(88dvh * 16 / 9)" }
-                  : { height: "100%", width: "auto" }),
+              aspectRatio: "9 / 16",
+              height: `${previewScale * 100}%`,
+              width: "auto",
             }}
           >
-            {realMode && config !== null ? (
+            {config !== null ? (
               <div className="absolute inset-0 overflow-hidden rounded-md">
                 <RealPreview config={config} playerRef={playerRef} />
               </div>
-            ) : (
-              <>
-                <div
-                  className="absolute inset-0 rounded-md"
-                  style={{
-                    background:
-                      "radial-gradient(120% 90% at 50% 20%, #1c2434 0%, #10141d 60%, #0b0d12 100%)",
-                  }}
-                />
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-muted">
-                  <span className="text-2xl" aria-hidden>▶</span>
-                  <span className="text-[11px] font-semibold tracking-widest uppercase">
-                    Mock preview — no media loaded
-                  </span>
-                  <span className="font-mono text-[11px]">{aspectRatio}</span>
-                </div>
-              </>
-            )}
+            ) : null}
             {safeZones && (
               <div aria-hidden className="pointer-events-none absolute inset-0">
                 <div className="absolute inset-[5%] rounded border border-warn/50" />
@@ -490,7 +440,7 @@ export default function PreviewMonitor() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-edge px-3 py-2">
-        {realMode ? realTransport : mockTransport}
+        {realMode ? realTransport : <span className="text-muted">Preview controls appear after a real project loads.</span>}
 
         <div className="flex gap-1">
           <button

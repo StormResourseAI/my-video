@@ -1,53 +1,12 @@
-import { render, screen, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import StudioShell from "@/components/StudioShell";
 import { resetStore } from "./helpers";
 
 beforeEach(resetStore);
 
-describe("panel data states", () => {
-  it("shows loading, error, and empty states for the project panel", async () => {
-    const user = userEvent.setup();
-    render(<StudioShell />);
-    const nav = () => screen.getByRole("complementary", { name: "Project navigation" });
-    const switcher = () => within(nav()).getByRole("combobox", { name: "Projects demo state" });
-
-    await user.selectOptions(switcher(), "loading");
-    expect(within(nav()).getByRole("status", { name: "Loading" })).toBeInTheDocument();
-
-    await user.selectOptions(switcher(), "error");
-    expect(within(nav()).getByRole("alert")).toHaveTextContent("Something went wrong");
-
-    await user.selectOptions(switcher(), "empty");
-    expect(within(nav()).getByText(/No projects yet/)).toBeInTheDocument();
-
-    await user.selectOptions(switcher(), "normal");
-    expect(
-      within(nav()).getByRole("button", { name: /Airbnb Cinematic Edit/ }),
-    ).toBeInTheDocument();
-  });
-
-  it("shows loading, error, and empty states for the media browser", async () => {
-    const user = userEvent.setup();
-    render(<StudioShell />);
-    const media = () => screen.getByRole("region", { name: "Media browser" });
-    const switcher = () => within(media()).getByRole("combobox", { name: "Media demo state" });
-
-    await user.selectOptions(switcher(), "loading");
-    expect(within(media()).getByRole("status", { name: "Loading" })).toBeInTheDocument();
-
-    await user.selectOptions(switcher(), "error");
-    expect(within(media()).getByRole("alert")).toHaveTextContent("Something went wrong");
-
-    await user.selectOptions(switcher(), "empty");
-    expect(within(media()).getByText(/No media in this project/)).toBeInTheDocument();
-  });
-
-  it("shows a natural empty state when search matches nothing", async () => {
-    const user = userEvent.setup();
-    render(<StudioShell />);
-    const media = screen.getByRole("region", { name: "Media browser" });
-    await user.type(within(media).getByRole("searchbox", { name: "Search media" }), "zzzzz");
-    expect(within(media).getByText(/No media matches/)).toBeInTheDocument();
-  });
+describe("operator states", () => {
+  it("shows project loading without fixture content", () => { vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {}))); render(<StudioShell />); expect(screen.getByRole("status", { name: "Loading projects" })).toBeInTheDocument(); expect(screen.getByRole("region", { name: "Preview monitor" })).toHaveTextContent(/Loading real local projects/); expect(screen.queryByText(/Airbnb Cinematic/)).not.toBeInTheDocument(); });
+  it("shows project API failure with Retry", async () => { vi.stubGlobal("fetch", vi.fn(async () => Response.json({ error: { code: "internal", message: "Unavailable" } }, { status: 500 }))); render(<StudioShell />); const nav=screen.getByRole("complementary", { name: "Project navigation" }); const alert=await within(nav).findByRole("alert"); expect(alert).toHaveTextContent(/Projects unavailable/); expect(within(alert).getByRole("button", { name: "Retry" })).toBeInTheDocument(); expect(screen.getByRole("region", { name: "Preview monitor" })).toHaveTextContent(/Projects could not be loaded[\s\S]*Retry in the Projects panel/); expect(screen.queryByText(/Mock preview/)).not.toBeInTheDocument(); });
+  it("shows an honest no-project state", async () => { vi.stubGlobal("fetch", vi.fn(async () => Response.json({ schemaVersion: 1, projects: [] }))); render(<StudioShell />); const preview=screen.getByRole("region", { name: "Preview monitor" }); await waitFor(() => expect(preview).toHaveTextContent(/No materialized projects available/)); expect(preview).toHaveTextContent(/Source files remain safe/); expect(screen.queryByText(/Mock preview/)).not.toBeInTheDocument(); });
+  it("shows an honest state when projects exist but none are preview-ready", async () => { vi.stubGlobal("fetch", vi.fn(async () => Response.json({ schemaVersion: 1, projects: [{ schemaVersion: 1, projectId: "demo", projectName: "Demo", clientSlug: null, previewReady: false, cacheTimestamp: null }] }))); render(<StudioShell />); const preview=screen.getByRole("region", { name: "Preview monitor" }); await waitFor(() => expect(preview).toHaveTextContent(/No preview-ready project is available/)); expect(preview).toHaveTextContent(/Materialize a project outside Studio/); expect(screen.queryByText(/Mock preview/)).not.toBeInTheDocument(); });
 });

@@ -206,14 +206,8 @@ describe("phase 2 dynamic egress policy", () => {
     const user = userEvent.setup();
     render(<StudioShell />);
 
-    await screen.findByText(/No materialized projects found/);
-    await user.click(screen.getByRole("button", { name: /Drone Property Reveal/ }));
-    await user.click(screen.getByRole("radio", { name: "Video" }));
-    await user.click(screen.getByRole("option", { name: "Select D001_ridge_flyover.mp4" }));
-    await user.click(screen.getByRole("radio", { name: "9:16" }));
-    await user.click(screen.getByRole("button", { name: "Play" }));
-    await user.click(screen.getByRole("button", { name: "Pause" }));
-    await user.click(screen.getByRole("button", { name: "Media panel" }));
+    await screen.findAllByText(/No materialized projects available/, { selector: "p" });
+    await user.click(screen.getByRole("button", { name: "Hide Media panel" }));
 
     expect(calls.length).toBeGreaterThan(0);
     for (const call of calls) {

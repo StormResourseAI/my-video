@@ -206,7 +206,7 @@ describe("phase 2 dynamic egress policy", () => {
     const user = userEvent.setup();
     render(<StudioShell />);
 
-    await screen.findByText(/No preview-ready projects/);
+    await screen.findAllByText(/No materialized projects available/, { selector: "p" });
     await user.click(screen.getByRole("button", { name: "Hide Media panel" }));
 
     expect(calls.length).toBeGreaterThan(0);

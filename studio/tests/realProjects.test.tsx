@@ -102,7 +102,7 @@ describe("real project discovery and preview", () => {
 
     // Media browser shows the real read-only assets.
     const media = screen.getByRole("region", { name: "Media browser" });
-    expect(within(media).getByRole("option", { name: /01_open\.mp4/ })).toBeInTheDocument();
+    expect(within(media).getByRole("button", { name: /01_open\.mp4/ })).toBeInTheDocument();
 
     // Inspector shows real project metadata.
     const inspector = screen.getByRole("complementary", { name: "Inspector" });

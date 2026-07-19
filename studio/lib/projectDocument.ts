@@ -15,9 +15,9 @@ export const SLUG_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 export const ASSET_ID_RE = /^[A-Za-z0-9_-]{1,512}$/; // canonical unpadded base64url
 export const COLOR_RE = /^#[0-9a-fA-F]{3,8}$/;
 const CLIP_SRC_RE = /^api\/assets\/[A-Za-z0-9_-]{1,512}$/;
-const MAX_CLIPS = 100;
-const MAX_FRAMES = 108_000; // 60 min @ 30fps — sanity ceiling
-const MAX_NAME = 200;
+export const MAX_CLIPS = 100;
+export const MAX_FRAMES = 108_000; // 60 min @ 30fps — sanity ceiling
+export const MAX_NAME = 200;
 
 export type ProjectStatus = "ready" | "props-missing" | "media-missing" | "invalid";
 export type Freshness = "current" | "stale" | "unknown";

@@ -4,9 +4,9 @@
   "private": true,
   "description": "myvideo_ Studio — local-first AI-assisted video production cockpit (Phase 1 mock shell)",
   "scripts": {
-    "dev": "NEXT_TELEMETRY_DISABLED=1 MYVIDEO_REPO_ROOT=\"$(cd .. && pwd)\" next dev -H 127.0.0.1",
+    "dev": "NEXT_TELEMETRY_DISABLED=1 MYVIDEO_REPO_ROOT=\"$(cd .. && pwd)\" MYVIDEO_STUDIO_DATA_ROOT=\"${MYVIDEO_STUDIO_DATA_ROOT:-$HOME/Library/Application Support/myvideo-studio}\" next dev -H 127.0.0.1",
     "build": "NEXT_TELEMETRY_DISABLED=1 next build",
-    "start": "NEXT_TELEMETRY_DISABLED=1 MYVIDEO_REPO_ROOT=\"$(cd .. && pwd)\" next start -H 127.0.0.1",
+    "start": "NEXT_TELEMETRY_DISABLED=1 MYVIDEO_REPO_ROOT=\"$(cd .. && pwd)\" MYVIDEO_STUDIO_DATA_ROOT=\"${MYVIDEO_STUDIO_DATA_ROOT:-$HOME/Library/Application Support/myvideo-studio}\" next start -H 127.0.0.1",
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest"

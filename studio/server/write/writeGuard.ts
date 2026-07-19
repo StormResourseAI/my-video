@@ -7,9 +7,9 @@ import "server-only";
 
 import { errorResponse, forbiddenHost, fromError, isLocalHost } from "../http";
 import { WriteError } from "./dataRootPolicy";
+import { WRITE_INTENT_HEADER, WRITE_INTENT_VALUE } from "@/lib/draftDocument";
 
-export const WRITE_INTENT_HEADER = "x-myvideo-intent";
-export const WRITE_INTENT_VALUE = "studio-write-v1";
+export { WRITE_INTENT_HEADER, WRITE_INTENT_VALUE };
 export const MAX_WRITE_BODY_BYTES = 262_144;
 
 const LOCAL_ORIGIN_RE = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d{1,5})?$/i;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { PanelVisibility } from "@/lib/types";
 import { useStudioStore } from "@/state/studioStore";
 import AppRail from "./AppRail";
@@ -49,6 +49,12 @@ export default function StudioShell() {
   const panels = useStudioStore((s) => s.panels);
   const togglePanel = useStudioStore((s) => s.togglePanel);
   const fullscreen = useStudioStore((s) => s.fullscreen);
+  const restoreDraftSession = useStudioStore((s) => s.restoreDraftSession);
+
+  // Reload a saved draft after a browser refresh (session-scoped only).
+  useEffect(() => {
+    void restoreDraftSession();
+  }, [restoreDraftSession]);
 
   const showNav = panels.projectNav;
   const showMedia = panels.mediaBrowser && !fullscreen;

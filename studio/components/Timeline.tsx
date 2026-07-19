@@ -113,6 +113,104 @@ function RealTimeline() {
   );
 }
 
+/** Draft-edit lane: explicit move/enable controls per clip, no drag. */
+function DraftTimeline() {
+  const draftWorking = useStudioStore((s) => s.draftWorking);
+  const doc = useStudioStore((s) => s.document);
+  const selection = useStudioStore((s) => s.selection);
+  const selectClip = useStudioStore((s) => s.selectClip);
+  const moveDraftClip = useStudioStore((s) => s.moveDraftClip);
+  const toggleDraftClip = useStudioStore((s) => s.toggleDraftClip);
+
+  if (draftWorking === null) return null;
+  const fps = doc?.composition?.fps ?? 30;
+  const enabled = draftWorking.clips.filter((c) => c.enabled);
+  const effective = (c: (typeof draftWorking.clips)[number]) =>
+    c.sourceDurationInFrames - c.trimBefore - c.trimAfter;
+  const total = Math.max(
+    enabled.reduce((sum, c) => sum + effective(c), 0) -
+      Math.max(0, enabled.length - 1) * draftWorking.transitionFrames,
+    enabled.length > 0 ? 1 : 0,
+  );
+
+  return (
+    <section
+      aria-label="Timeline"
+      className="flex h-full min-h-0 flex-col border-t border-edge bg-panel"
+    >
+      <div className="flex items-center justify-between border-b border-edge px-3 py-1.5">
+        <div className="flex items-center gap-2">
+          <h2 className="text-[11px] font-bold tracking-widest text-muted uppercase">Timeline</h2>
+          <Chip tone="accent">Draft edit</Chip>
+        </div>
+        <span className="font-mono text-[11px] text-muted">
+          {enabled.length}/{draftWorking.clips.length} clips · {total}f ·{" "}
+          {(total / fps).toFixed(1)}s
+        </span>
+      </div>
+
+      <ul className="min-h-0 flex-1 overflow-auto" aria-label="Draft clips">
+        {draftWorking.clips.map((clip, index) => {
+          const selected = selection.kind === "clip" && selection.clipId === clip.sourceAssetId;
+          return (
+            <li
+              key={clip.sourceAssetId}
+              className={`flex items-center gap-2 border-b border-edge/60 px-3 py-2 ${
+                clip.enabled ? "" : "opacity-50"
+              } ${selected ? "bg-accent-soft/40" : ""}`}
+            >
+              <button
+                type="button"
+                onClick={() => selectClip(clip.sourceAssetId)}
+                aria-current={selected}
+                aria-label={`Select ${clip.fileName}`}
+                className="flex min-w-0 flex-1 items-baseline gap-2 text-left hover:text-text"
+              >
+                <span className="font-mono text-[11px] text-muted">{index + 1}</span>
+                <span className="truncate text-[12px] font-semibold">{clip.fileName}</span>
+                <span className="shrink-0 font-mono text-[10px] text-muted">
+                  {effective(clip)}f{clip.trimBefore > 0 || clip.trimAfter > 0
+                    ? ` (−${clip.trimBefore}/−${clip.trimAfter})`
+                    : ""}
+                </span>
+              </button>
+              <button
+                type="button"
+                aria-label={`Move ${clip.fileName} up`}
+                disabled={index === 0}
+                onClick={() => moveDraftClip(index, -1)}
+                className="h-6 w-6 rounded bg-raised text-muted hover:text-text disabled:opacity-30"
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                aria-label={`Move ${clip.fileName} down`}
+                disabled={index === draftWorking.clips.length - 1}
+                onClick={() => moveDraftClip(index, 1)}
+                className="h-6 w-6 rounded bg-raised text-muted hover:text-text disabled:opacity-30"
+              >
+                ↓
+              </button>
+              <button
+                type="button"
+                aria-pressed={clip.enabled}
+                aria-label={`${clip.enabled ? "Disable" : "Enable"} ${clip.fileName}`}
+                onClick={() => toggleDraftClip(index)}
+                className={`rounded px-2 py-0.5 text-[10px] font-semibold ${
+                  clip.enabled ? "bg-accent-soft text-accent" : "bg-raised text-muted"
+                }`}
+              >
+                {clip.enabled ? "On" : "Off"}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 const TRACK_TOGGLES: { key: keyof TrackControlState; label: string; glyph: string }[] = [
   { key: "locked", label: "Lock", glyph: "🔒" },
   { key: "muted", label: "Mute", glyph: "🔇" },
@@ -121,6 +219,7 @@ const TRACK_TOGGLES: { key: keyof TrackControlState; label: string; glyph: strin
 
 export default function Timeline() {
   const realMode = useStudioStore((s) => s.activeRealProjectId) !== null;
+  const draftMode = useStudioStore((s) => s.draftWorking) !== null;
   const zoom = useStudioStore((s) => s.zoom);
   const setZoom = useStudioStore((s) => s.setZoom);
   const currentTime = useStudioStore((s) => s.currentTime);
@@ -134,6 +233,7 @@ export default function Timeline() {
   const playheadX = (currentTime % TIMELINE_LENGTH) * pxPerSec;
   const tickCount = Math.floor(TIMELINE_LENGTH / 5);
 
+  if (draftMode) return <DraftTimeline />;
   if (realMode) return <RealTimeline />;
 
   return (

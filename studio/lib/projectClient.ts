@@ -1,5 +1,7 @@
 // The ONLY module in the Studio client allowed to call fetch (enforced by
-// tests/safety.test.tsx). Same-origin, GET-only, relative /api/ URLs.
+// tests/safety.test.tsx). Same-origin, relative /api/ URLs. Reads are GET;
+// the only mutations are the Phase 3 draft/render calls, which carry the
+// Studio write-intent header and JSON bodies.
 
 import {
   validateDocument,
@@ -8,6 +10,14 @@ import {
   type ProjectSummaryV1,
   SLUG_RE,
 } from "./projectDocument";
+import {
+  UUID_RE,
+  validateDraft,
+  WRITE_INTENT_HEADER,
+  WRITE_INTENT_VALUE,
+  type DraftEditsV1,
+  type StudioDraftV1,
+} from "./draftDocument";
 
 export type ClientResult<T> =
   | { ok: true; value: T }
@@ -20,6 +30,10 @@ async function getJson(url: string): Promise<ClientResult<unknown>> {
   } catch {
     return { ok: false, code: "network", message: "Studio server unreachable." };
   }
+  return parseResult(res);
+}
+
+async function parseResult(res: Response): Promise<ClientResult<unknown>> {
   let body: unknown = null;
   try {
     body = await res.json();
@@ -35,6 +49,61 @@ async function getJson(url: string): Promise<ClientResult<unknown>> {
     };
   }
   return { ok: true, value: body };
+}
+
+async function sendJson(
+  url: string,
+  method: "POST" | "PUT",
+  payload: unknown,
+): Promise<ClientResult<unknown>> {
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        [WRITE_INTENT_HEADER]: WRITE_INTENT_VALUE,
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    return { ok: false, code: "network", message: "Studio server unreachable." };
+  }
+  return parseResult(res);
+}
+
+function asDraft(res: ClientResult<unknown>): ClientResult<StudioDraftV1> {
+  if (!res.ok) return res;
+  const draft = validateDraft(res.value);
+  if (draft === null) {
+    return { ok: false, code: "invalid_contract", message: "Draft failed validation." };
+  }
+  return { ok: true, value: draft };
+}
+
+export async function createDraftApi(sourceProjectId: string): Promise<ClientResult<StudioDraftV1>> {
+  if (!SLUG_RE.test(sourceProjectId)) {
+    return { ok: false, code: "invalid_id", message: "Invalid project id." };
+  }
+  return asDraft(await sendJson("/api/drafts", "POST", { sourceProjectId }));
+}
+
+export async function saveDraftApi(
+  draftId: string,
+  edits: DraftEditsV1,
+): Promise<ClientResult<StudioDraftV1>> {
+  if (!UUID_RE.test(draftId)) {
+    return { ok: false, code: "invalid_id", message: "Invalid draft id." };
+  }
+  return asDraft(await sendJson(`/api/drafts/${encodeURIComponent(draftId)}`, "PUT", edits));
+}
+
+export async function fetchDraft(draftId: string): Promise<ClientResult<StudioDraftV1>> {
+  if (!UUID_RE.test(draftId)) {
+    return { ok: false, code: "invalid_id", message: "Invalid draft id." };
+  }
+  return asDraft(await getJson(`/api/drafts/${encodeURIComponent(draftId)}`));
 }
 
 export async function fetchProjects(): Promise<ClientResult<ProjectSummaryV1[]>> {

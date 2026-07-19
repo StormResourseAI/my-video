@@ -24,6 +24,11 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-
 /** SHA-256 hex digest produced by the server-side fingerprint routine. */
 export const FINGERPRINT_RE = /^[0-9a-f]{64}$/;
 
+/** Write-protocol constants shared by the client and the server gate. The
+ *  custom header is a CSRF barrier: cross-origin HTML forms cannot set it. */
+export const WRITE_INTENT_HEADER = "x-myvideo-intent";
+export const WRITE_INTENT_VALUE = "studio-write-v1";
+
 /** Plain-text guard: draft titles may not contain control characters. */
 const CONTROL_CHARS_RE = /[\u0000-\u001f\u007f]/;
 

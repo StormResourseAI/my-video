@@ -1,6 +1,12 @@
 # myvideo_ Studio — Phase 2 Read-Only Integration Architecture
 
-Status: PROPOSAL — no Phase 2 product code exists yet.
+Status: IMPLEMENTED — Phase 2A shipped on `feat/studio-phase2-readonly-integration`;
+see `PHASE2A_CERTIFICATION.md` for the implementation outcome, validation
+results, browser QA, non-mutation proof, and the deviations log (§11 there:
+tsconfig-paths aliasing instead of turbopack resolveAlias; the browser-safe
+boundary is the existing composition file guarded by `check:browser-safe`;
+`server/http.ts` added for the Host allowlist). All five §19 founder
+decisions were resolved and applied on 2026-07-18.
 Date: 2026-07-18
 Baseline: `v1-top-5-skills` @ `b18446b479d35cecbb8cd1a35e6f6be63a9d815b`
 Branch: `feat/studio-phase2-readonly-architecture`

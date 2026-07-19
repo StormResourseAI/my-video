@@ -94,7 +94,14 @@ async function computeSourceFingerprint(repoRoot, projectId) {
   } catch {
     return null;
   }
-  if (parsed === null || typeof parsed !== "object" || !Array.isArray(parsed.clips)) return null;
+  if (
+    parsed === null ||
+    typeof parsed !== "object" ||
+    !Array.isArray(parsed.clips) ||
+    parsed.clips.length > 100
+  ) {
+    return null;
+  }
   const assets = [];
   for (const clip of parsed.clips) {
     const file = clip?.file;

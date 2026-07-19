@@ -6,10 +6,25 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
-import { getRoots, resolveUnder } from "../pathPolicy";
-import { validateProps } from "@/lib/projectDocument";
+import { getRoots, isValidFileName, resolveUnder } from "../pathPolicy";
 
 const sha256 = (data: string | Buffer): string => createHash("sha256").update(data).digest("hex");
+
+/** Extract the referenced clip file names from the RAW engine props cache
+ *  (whose src fields are engine-relative, not the rewritten API form).
+ *  Returns null when the cache is structurally unusable. */
+function clipFileNames(parsed: unknown): string[] | null {
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+  const clips = (parsed as { clips?: unknown }).clips;
+  if (!Array.isArray(clips) || clips.length > 100) return null;
+  const files: string[] = [];
+  for (const clip of clips) {
+    const file = (clip as { file?: unknown } | null)?.file;
+    if (typeof file !== "string" || !isValidFileName(file)) return null;
+    files.push(file);
+  }
+  return files;
+}
 
 /** Returns the fingerprint hex digest, or null when the source project has
  *  no valid materialized props cache. */
@@ -33,21 +48,21 @@ export async function computeSourceFingerprint(projectId: string): Promise<strin
   } catch {
     return null;
   }
-  const props = validateProps(parsed);
-  if (props === null) return null;
+  const files = clipFileNames(parsed);
+  if (files === null) return null;
 
   const assets: Array<[string, number | "missing"]> = [];
-  for (const clip of props.clips) {
-    const mediaPath = await resolveUnder(roots.media, projectId, clip.file);
+  for (const file of files) {
+    const mediaPath = await resolveUnder(roots.media, projectId, file);
     if (mediaPath === null) {
-      assets.push([clip.file, "missing"]);
+      assets.push([file, "missing"]);
       continue;
     }
     try {
       const st = await fs.stat(mediaPath);
-      assets.push([clip.file, st.size]);
+      assets.push([file, st.size]);
     } catch {
-      assets.push([clip.file, "missing"]);
+      assets.push([file, "missing"]);
     }
   }
 

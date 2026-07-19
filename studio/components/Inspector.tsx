@@ -1,512 +1,56 @@
 "use client";
 
-import { useState } from "react";
-import { CLIPS, MEDIA_ASSETS } from "@/fixtures";
 import { useStudioStore } from "@/state/studioStore";
 import { Chip } from "./ui";
 
-const CLIP_TOOLS = [
-  "Best Moment",
-  "Auto Reframe",
-  "Remove Silence",
-  "Generate Captions",
-  "Replace Clip",
-  "Extend Scene",
-];
-
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <details open className="border-b border-edge px-3 py-2">
-      <summary className="cursor-pointer text-[11px] font-bold tracking-widest text-muted uppercase select-none">
-        {title}
-      </summary>
-      <div className="mt-2 flex flex-col gap-2">{children}</div>
-    </details>
-  );
-}
-
-function MockField({ label, value }: { label: string; value: string }) {
-  return (
-    <label className="flex items-center justify-between gap-2 text-muted">
-      <span>{label}</span>
-      <input
-        type="text"
-        readOnly
-        disabled
-        value={value}
-        aria-label={label}
-        title="Mock only — not wired in Phase 1"
-        className="w-24 rounded border border-edge bg-raised px-1.5 py-1 text-right font-mono text-[11px] text-muted"
-      />
-    </label>
-  );
-}
-
-function MockSelect({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string;
-  options: string[];
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <label className="flex items-center justify-between gap-2 text-muted">
-      <span>{label}</span>
-      <select
-        aria-label={label}
-        title="Local state only — not wired in Phase 1"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-32 rounded border border-edge bg-raised px-1.5 py-1 text-[11px]"
-      >
-        {options.map((o) => (
-          <option key={o}>{o}</option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-/** Project-level creative settings shown when nothing is selected.
- *  Local-state-only: values are kept in component state and drive nothing. */
-function ProjectSettings() {
-  const [direction, setDirection] = useState("Warm & inviting");
-  const [pacing, setPacing] = useState("Relaxed");
-  const [energy, setEnergy] = useState(60);
-  const [captionStyle, setCaptionStyle] = useState("Clean sans");
-  const [brandKit, setBrandKit] = useState("Coastal Stays");
-  const [platform, setPlatform] = useState("Instagram Reels");
-  const [length, setLength] = useState("30 s");
-
-  return (
-    <>
-      <div className="border-b border-edge px-3 py-2">
-        <p className="font-semibold">Project settings</p>
-        <p className="mt-0.5 text-[11px] text-muted">
-          Select a clip or media asset to inspect it.
-        </p>
-      </div>
-      <Group title="Creative Direction">
-        <MockSelect
-          label="Creative Direction"
-          options={["Warm & inviting", "Bold & punchy", "Minimal & calm"]}
-          value={direction}
-          onChange={setDirection}
-        />
-      </Group>
-      <Group title="Pacing">
-        <MockSelect
-          label="Pacing"
-          options={["Relaxed", "Medium", "Fast"]}
-          value={pacing}
-          onChange={setPacing}
-        />
-      </Group>
-      <Group title="Music Energy">
-        <label className="flex items-center justify-between gap-2 text-muted">
-          <span>Energy</span>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={energy}
-            aria-label="Music Energy"
-            title="Local state only — not wired in Phase 1"
-            onChange={(e) => setEnergy(Number(e.target.value))}
-            className="w-32 accent-(--color-accent)"
-          />
-        </label>
-      </Group>
-      <Group title="Caption Style">
-        <MockSelect
-          label="Caption Style"
-          options={["Clean sans", "Bold pop", "Serif editorial"]}
-          value={captionStyle}
-          onChange={setCaptionStyle}
-        />
-      </Group>
-      <Group title="Brand Kit">
-        <MockSelect
-          label="Brand Kit"
-          options={["Coastal Stays", "Ridgeline Realty", "Maple & Stone"]}
-          value={brandKit}
-          onChange={setBrandKit}
-        />
-      </Group>
-      <Group title="Target Platform">
-        <MockSelect
-          label="Target Platform"
-          options={["Instagram Reels", "TikTok", "YouTube", "Airbnb listing"]}
-          value={platform}
-          onChange={setPlatform}
-        />
-      </Group>
-      <Group title="Desired Length">
-        <MockSelect
-          label="Desired Length"
-          options={["15 s", "30 s", "60 s", "90 s"]}
-          value={length}
-          onChange={setLength}
-        />
-      </Group>
-    </>
-  );
-}
-
-function ClipDetails({ name, meta }: { name: string; meta: string }) {
-  return (
-    <>
-      <div className="border-b border-edge px-3 py-2">
-        <p className="truncate font-semibold" data-testid="inspector-selection-name">
-          {name}
-        </p>
-        <p className="mt-0.5 text-[11px] text-muted">{meta}</p>
-      </div>
-      <Group title="Transform">
-        <MockField label="Position X" value="0" />
-        <MockField label="Position Y" value="0" />
-        <MockField label="Scale" value="100%" />
-        <MockField label="Rotation" value="0°" />
-      </Group>
-      <Group title="Crop & Reframe">
-        <MockField label="Crop" value="None" />
-        <MockField label="Reframe" value="Center" />
-      </Group>
-      <Group title="Speed">
-        <MockField label="Speed" value="100%" />
-      </Group>
-      <Group title="Volume">
-        <MockField label="Volume" value="0 dB" />
-      </Group>
-      <Group title="Color">
-        <MockField label="LUT" value="Neutral" />
-        <MockField label="Exposure" value="0.0" />
-      </Group>
-      <Group title="Transitions">
-        <MockField label="In" value="Cut" />
-        <MockField label="Out" value="Cross 12f" />
-      </Group>
-      <Group title="AI Tools">
-        {CLIP_TOOLS.map((tool) => (
-          <button
-            key={tool}
-            type="button"
-            disabled
-            title="Mock only — not wired in Phase 1"
-            className="rounded-md border border-edge bg-raised px-2 py-1.5 text-left text-muted"
-          >
-            ✦ {tool}
-          </button>
-        ))}
-      </Group>
-    </>
-  );
+  return <section className="border-b border-edge px-3 py-2"><h3 className="text-[11px] font-bold tracking-widest text-muted uppercase">{title}</h3><div className="mt-2 flex flex-col gap-2">{children}</div></section>;
 }
 
 function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-start justify-between gap-2 text-muted">
-      <span className="shrink-0">{label}</span>
-      <span className="text-right font-mono text-[11px] break-all text-text">{value}</span>
-    </div>
-  );
-}
-
-/** Real project / asset metadata — read-only, no mock editing affordances. */
-function RealDetails() {
-  const doc = useStudioStore((s) => s.document);
-  const selection = useStudioStore((s) => s.selection);
-
-  if (doc === null) {
-    return (
-      <div className="m-3 rounded-md border border-dashed border-edge p-4 text-center text-muted">
-        Project metadata appears here once the project loads.
-      </div>
-    );
-  }
-
-  const asset =
-    selection.kind === "asset"
-      ? (doc.assets.find((a) => a.assetId === selection.assetId) ?? null)
-      : null;
-
-  if (asset !== null) {
-    return (
-      <>
-        <div className="border-b border-edge px-3 py-2">
-          <p className="truncate font-semibold" data-testid="inspector-selection-name">
-            {asset.fileName}
-          </p>
-          <p className="mt-0.5 text-[11px] text-muted">Staged clip · read-only</p>
-        </div>
-        <Group title="Asset">
-          <Row label="Kind" value={asset.kind} />
-          <Row label="Project" value={doc.projectId} />
-          <Row label="Served from" value={asset.previewUrl} />
-        </Group>
-      </>
-    );
-  }
-
-  return (
-    <>
-      <div className="border-b border-edge px-3 py-2">
-        <p className="truncate font-semibold">{doc.projectName}</p>
-        <p className="mt-0.5 text-[11px] text-muted">Read-only project overview</p>
-      </div>
-      <Group title="Project">
-        <Row label="Id" value={doc.projectId} />
-        <Row label="Client" value={doc.clientSlug ?? "—"} />
-        <Row label="Status" value={doc.status} />
-        <Row label="Source" value="materialized cache" />
-        <Row label="Cached" value={doc.cacheTimestamp ?? "—"} />
-        <Row label="Freshness" value={doc.freshness} />
-        <Row label="Assets" value={String(doc.assets.length)} />
-      </Group>
-      {doc.composition !== null && (
-        <Group title="Composition">
-          <Row label="Id" value={doc.composition.compositionId} />
-          <Row
-            label="Frame"
-            value={`${doc.composition.width}×${doc.composition.height} @ ${doc.composition.fps}fps`}
-          />
-          <Row label="Duration" value={`${doc.composition.durationInFrames} frames`} />
-          <Row label="Aspect" value={doc.composition.aspectRatio} />
-        </Group>
-      )}
-      {doc.warnings.length > 0 && (
-        <Group title="Warnings">
-          {doc.warnings.map((w) => (
-            <p key={w} className="text-[11px] text-warn">
-              {w}
-            </p>
-          ))}
-        </Group>
-      )}
-    </>
-  );
-}
-
-const HEX6_RE = /^#[0-9a-fA-F]{6}$/;
-const COLOR_INPUT_RE = /^#[0-9a-fA-F]{3,8}$/;
-
-/** Draft-edit form: the only writable controls in Studio. Edits stay in
- *  browser state until Save Draft is pressed in the preview header. */
-function DraftDetails() {
-  const draft = useStudioStore((s) => s.draft);
-  const draftWorking = useStudioStore((s) => s.draftWorking);
-  const selection = useStudioStore((s) => s.selection);
-  const setDraftTitle = useStudioStore((s) => s.setDraftTitle);
-  const setDraftBackground = useStudioStore((s) => s.setDraftBackground);
-  const setDraftTransition = useStudioStore((s) => s.setDraftTransition);
-  const setDraftTrim = useStudioStore((s) => s.setDraftTrim);
-  const toggleDraftClip = useStudioStore((s) => s.toggleDraftClip);
-
-  if (draft === null || draftWorking === null) return null;
-
-  const clipIndex =
-    selection.kind === "clip"
-      ? draftWorking.clips.findIndex((c) => c.sourceAssetId === selection.clipId)
-      : -1;
-  const clip = clipIndex >= 0 ? draftWorking.clips[clipIndex] : null;
-  const colorValid = COLOR_INPUT_RE.test(draftWorking.backgroundColor);
-
-  return (
-    <>
-      <div className="border-b border-edge px-3 py-2">
-        <p className="truncate font-semibold">Draft edit</p>
-        <p className="mt-0.5 text-[11px] text-muted">
-          v{draft.version} · source {draft.sourceProjectId} (read-only)
-        </p>
-      </div>
-      <Group title="Draft">
-        <label className="flex flex-col gap-1 text-muted">
-          <span>Title</span>
-          <input
-            type="text"
-            aria-label="Draft title"
-            value={draftWorking.draftTitle ?? ""}
-            maxLength={200}
-            placeholder="Untitled"
-            onChange={(e) => setDraftTitle(e.target.value)}
-            className="rounded border border-edge bg-raised px-1.5 py-1 font-mono text-[11px] text-text"
-          />
-        </label>
-        <label className="flex items-center justify-between gap-2 text-muted">
-          <span>Background</span>
-          {HEX6_RE.test(draftWorking.backgroundColor) ? (
-            <span className="flex items-center gap-1.5">
-              <span className="font-mono text-[11px]">{draftWorking.backgroundColor}</span>
-              <input
-                type="color"
-                aria-label="Background color"
-                value={draftWorking.backgroundColor}
-                onChange={(e) => setDraftBackground(e.target.value)}
-                className="h-6 w-10 cursor-pointer rounded border border-edge bg-raised"
-              />
-            </span>
-          ) : (
-            <input
-              type="text"
-              aria-label="Background color"
-              value={draftWorking.backgroundColor}
-              maxLength={9}
-              aria-invalid={!colorValid}
-              onChange={(e) => setDraftBackground(e.target.value)}
-              className={`w-24 rounded border px-1.5 py-1 text-right font-mono text-[11px] text-text ${
-                colorValid ? "border-edge bg-raised" : "border-danger bg-danger/10"
-              }`}
-            />
-          )}
-        </label>
-        {!colorValid && (
-          <p role="alert" className="text-[11px] text-danger">
-            Use a hex color like #111111.
-          </p>
-        )}
-        <label className="flex items-center justify-between gap-2 text-muted">
-          <span>Transition frames</span>
-          <input
-            type="number"
-            aria-label="Transition frames"
-            min={0}
-            max={300}
-            step={1}
-            value={draftWorking.transitionFrames}
-            onChange={(e) => setDraftTransition(Number(e.target.value))}
-            className="w-20 rounded border border-edge bg-raised px-1.5 py-1 text-right font-mono text-[11px] text-text"
-          />
-        </label>
-      </Group>
-      {clip !== null ? (
-        <Group title={`Clip · ${clip.fileName}`}>
-          <p className="text-[11px] text-muted">
-            Source window: {clip.sourceDurationInFrames} frames
-          </p>
-          <label className="flex items-center justify-between gap-2 text-muted">
-            <span>Trim before</span>
-            <input
-              type="number"
-              aria-label="Trim before"
-              min={0}
-              max={Math.max(0, clip.sourceDurationInFrames - clip.trimAfter - 1)}
-              step={1}
-              value={clip.trimBefore}
-              onChange={(e) => setDraftTrim(clipIndex, "trimBefore", Number(e.target.value))}
-              className="w-20 rounded border border-edge bg-raised px-1.5 py-1 text-right font-mono text-[11px] text-text"
-            />
-          </label>
-          <label className="flex items-center justify-between gap-2 text-muted">
-            <span>Trim after</span>
-            <input
-              type="number"
-              aria-label="Trim after"
-              min={0}
-              max={Math.max(0, clip.sourceDurationInFrames - clip.trimBefore - 1)}
-              step={1}
-              value={clip.trimAfter}
-              onChange={(e) => setDraftTrim(clipIndex, "trimAfter", Number(e.target.value))}
-              className="w-20 rounded border border-edge bg-raised px-1.5 py-1 text-right font-mono text-[11px] text-text"
-            />
-          </label>
-          <p className="text-[11px] text-muted">
-            Effective length: {clip.sourceDurationInFrames - clip.trimBefore - clip.trimAfter}{" "}
-            frames
-          </p>
-          <button
-            type="button"
-            aria-pressed={clip.enabled}
-            onClick={() => toggleDraftClip(clipIndex)}
-            className={`self-start rounded px-2 py-1 text-[11px] font-semibold ${
-              clip.enabled ? "bg-accent-soft text-accent" : "bg-raised text-muted"
-            }`}
-          >
-            {clip.enabled ? "Enabled" : "Disabled"}
-          </button>
-        </Group>
-      ) : (
-        <div className="px-3 py-2 text-[11px] text-muted">
-          Select a clip in the timeline to trim or toggle it.
-        </div>
-      )}
-    </>
-  );
+  return <div className="flex items-start justify-between gap-2 text-muted"><span>{label}</span><span className="text-right font-mono text-[11px] break-all text-text">{value}</span></div>;
 }
 
 export default function Inspector() {
+  const doc = useStudioStore((s) => s.document);
+  const draft = useStudioStore((s) => s.draft);
+  const working = useStudioStore((s) => s.draftWorking);
   const selection = useStudioStore((s) => s.selection);
-  const realMode = useStudioStore((s) => s.activeRealProjectId) !== null;
-  const draftMode = useStudioStore((s) => s.draftWorking) !== null;
+  const setTitle = useStudioStore((s) => s.setDraftTitle);
+  const setBackground = useStudioStore((s) => s.setDraftBackground);
+  const setTransition = useStudioStore((s) => s.setDraftTransition);
+  const setTrim = useStudioStore((s) => s.setDraftTrim);
+  const toggleClip = useStudioStore((s) => s.toggleDraftClip);
+  const fps = doc?.composition?.fps ?? 30;
 
-  if (draftMode) {
-    return (
-      <aside
-        aria-label="Inspector"
-        className="flex h-full min-h-0 flex-col overflow-y-auto border-l border-edge bg-panel"
-      >
-        <div className="flex items-center justify-between border-b border-edge px-3 py-2">
-          <h2 className="text-[11px] font-bold tracking-widest text-muted uppercase">Inspector</h2>
-          <Chip tone="accent">Draft edit</Chip>
-        </div>
-        <DraftDetails />
-      </aside>
-    );
-  }
-
-  if (realMode) {
-    return (
-      <aside
-        aria-label="Inspector"
-        className="flex h-full min-h-0 flex-col overflow-y-auto border-l border-edge bg-panel"
-      >
-        <div className="flex items-center justify-between border-b border-edge px-3 py-2">
-          <h2 className="text-[11px] font-bold tracking-widest text-muted uppercase">Inspector</h2>
-          <Chip tone="warn">Read-only</Chip>
-        </div>
-        <RealDetails />
-      </aside>
-    );
-  }
-
-  let body: React.ReactNode;
-  if (selection.kind === "clip") {
-    const clip = CLIPS.find((c) => c.id === selection.clipId);
-    body = clip ? (
-      <ClipDetails
-        name={clip.name}
-        meta={`Timeline clip · ${clip.duration}s${clip.badges.length ? ` · ${clip.badges.join(", ")}` : ""}`}
-      />
-    ) : (
-      <ProjectSettings />
-    );
-  } else if (selection.kind === "asset") {
-    const asset = MEDIA_ASSETS.find((a) => a.id === selection.assetId);
-    body = asset ? (
-      <ClipDetails
-        name={asset.filename}
-        meta={`${asset.kind} · ${asset.resolution} · AI score ${asset.aiScore}`}
-      />
-    ) : (
-      <ProjectSettings />
-    );
-  } else {
-    body = <ProjectSettings />;
-  }
+  const clipIndex = working && selection.kind === "clip" ? working.clips.findIndex((c) => c.sourceAssetId === selection.clipId) : -1;
+  const clip = working && clipIndex >= 0 ? working.clips[clipIndex] : null;
+  const asset = doc && selection.kind === "asset" ? doc.assets.find((a) => a.assetId === selection.assetId) : null;
+  const colorValid = working ? /^#[0-9a-fA-F]{3,8}$/.test(working.backgroundColor) : true;
 
   return (
-    <aside
-      aria-label="Inspector"
-      className="flex h-full min-h-0 flex-col overflow-y-auto border-l border-edge bg-panel"
-    >
-      <div className="flex items-center justify-between border-b border-edge px-3 py-2">
-        <h2 className="text-[11px] font-bold tracking-widest text-muted uppercase">Inspector</h2>
-        <Chip>Mock</Chip>
-      </div>
-      {body}
+    <aside aria-label="Inspector" className="flex h-full min-h-0 flex-col overflow-y-auto border-l border-edge bg-panel">
+      <div className="flex items-center justify-between border-b border-edge px-3 py-2"><h2 className="text-[11px] font-bold tracking-widest text-muted uppercase">Inspector</h2>{working ? <Chip tone="accent">Draft edit</Chip> : <Chip tone="warn">Read-only</Chip>}</div>
+      {working && draft ? (
+        <>
+          <div className="border-b border-edge px-3 py-2"><p className="font-semibold">Editable draft</p><p className="text-[11px] text-muted">Saved v{draft.version}; source remains immutable.</p></div>
+          <Group title="Draft settings">
+            <label className="flex flex-col gap-1 text-muted">Draft title<input aria-label="Draft title" value={working.draftTitle ?? ""} maxLength={200} onChange={(e) => setTitle(e.target.value)} className="rounded border border-edge bg-raised px-2 py-1 text-text" /></label>
+            <label className="flex flex-col gap-1 text-muted">Background color<input aria-label="Background color" value={working.backgroundColor} maxLength={9} aria-invalid={!colorValid} onChange={(e) => setBackground(e.target.value)} className={`rounded border px-2 py-1 font-mono text-text ${colorValid ? "border-edge bg-raised" : "border-danger bg-danger/10"}`} /></label>
+            {!colorValid && <p role="alert" className="text-danger">Use a hex color such as #111111.</p>}
+            <label className="flex flex-col gap-1 text-muted">Transition length<input type="number" aria-label="Transition frames" min={0} max={108000} step={1} value={working.transitionFrames} onChange={(e) => setTransition(Number(e.target.value))} className="rounded border border-edge bg-raised px-2 py-1 text-text" /><span className="text-[10px]">{working.transitionFrames} frames ≈ {(working.transitionFrames / fps).toFixed(2)} seconds</span></label>
+          </Group>
+          {clip ? <Group title={`Selected clip · ${clip.fileName}`}>
+            <p data-testid="inspector-selection-name" className="font-semibold">{clip.fileName}</p>
+            <p className="text-muted">Source window: {clip.sourceDurationInFrames} frames ≈ {(clip.sourceDurationInFrames / fps).toFixed(2)} seconds</p>
+            <label className="text-muted">Trim from start (0–{clip.sourceDurationInFrames - clip.trimAfter - 1} frames)<input type="number" aria-label="Trim before" min={0} max={clip.sourceDurationInFrames - clip.trimAfter - 1} value={clip.trimBefore} onChange={(e) => setTrim(clipIndex, "trimBefore", Number(e.target.value))} className="mt-1 w-full rounded border border-edge bg-raised px-2 py-1 text-text" /></label>
+            <label className="text-muted">Trim from end (0–{clip.sourceDurationInFrames - clip.trimBefore - 1} frames)<input type="number" aria-label="Trim after" min={0} max={clip.sourceDurationInFrames - clip.trimBefore - 1} value={clip.trimAfter} onChange={(e) => setTrim(clipIndex, "trimAfter", Number(e.target.value))} className="mt-1 w-full rounded border border-edge bg-raised px-2 py-1 text-text" /></label>
+            <button type="button" aria-pressed={clip.enabled} onClick={() => toggleClip(clipIndex)} className="rounded bg-raised px-2 py-1 text-left">{clip.enabled ? "Disable clip" : "Enable clip"}</button>
+          </Group> : <div className="m-3 rounded border border-dashed border-edge p-4 text-center text-muted">Select a timeline clip to edit trims and enabled state.</div>}
+        </>
+      ) : doc ? (
+        <>{asset ? <><div className="border-b border-edge px-3 py-2"><p data-testid="inspector-selection-name" className="truncate font-semibold">{asset.fileName}</p><p className="text-muted">Source asset · read-only</p></div><Group title="Asset"><Row label="Kind" value={asset.kind} /><Row label="Project" value={doc.projectId} /></Group></> : <><div className="border-b border-edge px-3 py-2"><p className="font-semibold">{doc.projectName}</p><p className="text-muted">Immutable source project</p></div><Group title="Project"><Row label="Status" value={doc.status} /><Row label="Freshness" value={doc.freshness} /><Row label="Assets" value={String(doc.assets.length)} />{doc.composition && <Row label="Duration" value={`${doc.composition.durationInFrames} frames (${(doc.composition.durationInFrames / fps).toFixed(1)}s)`} />}</Group></>}</>
+      ) : <div className="m-3 rounded border border-dashed border-edge p-4 text-center text-muted">Select a real project. Draft editing controls appear only after Create Draft.</div>}
     </aside>
   );
 }

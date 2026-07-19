@@ -354,6 +354,10 @@ export const useStudioStore = create<StudioState>()((set, get) => ({
     const res = await fetchProjects();
     if (res.ok) {
       set({ realProjects: res.value, realProjectsStatus: "loaded" });
+      if (get().activeRealProjectId === null && get().draftBusy !== "restoring") {
+        const preferred = res.value.find((project) => project.previewReady);
+        if (preferred !== undefined) await get().selectRealProject(preferred.projectId);
+      }
     } else {
       set({ realProjects: [], realProjectsStatus: "error", realProjectsError: res.message });
     }

@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import type { PlayerRef } from "@remotion/player";
-import { PROJECTS, TIMELINE_LENGTH } from "@/fixtures";
 import { deriveEngineProps, type StudioDraftV1 } from "@/lib/draftDocument";
 import { formatTimecode } from "@/lib/format";
 import { toPlayerConfig, type PlayerConfig } from "@/lib/projectAdapter";
@@ -85,14 +84,10 @@ function RealStatusPanel({
 }
 
 export default function PreviewMonitor() {
-  const activeProjectId = useStudioStore((s) => s.activeProjectId);
   const aspectRatio = useStudioStore((s) => s.aspectRatio);
   const playing = useStudioStore((s) => s.playing);
-  const currentTime = useStudioStore((s) => s.currentTime);
   const safeZones = useStudioStore((s) => s.safeZones);
   const fullscreen = useStudioStore((s) => s.fullscreen);
-  const setAspectRatio = useStudioStore((s) => s.setAspectRatio);
-  const togglePlay = useStudioStore((s) => s.togglePlay);
   const tick = useStudioStore((s) => s.tick);
   const toggleSafeZones = useStudioStore((s) => s.toggleSafeZones);
   const toggleFullscreen = useStudioStore((s) => s.toggleFullscreen);
@@ -141,9 +136,7 @@ export default function PreviewMonitor() {
     : doc !== null
       ? toPlayerConfig(doc)
       : null;
-  const project = PROJECTS.find((p) => p.id === activeProjectId);
   const ratio = RATIOS.find((r) => r.value === aspectRatio) ?? RATIOS[0];
-  const displayTime = currentTime % TIMELINE_LENGTH;
 
   // Mock playback clock — mock mode only; real mode mirrors the Player.
   useEffect(() => {
@@ -222,44 +215,6 @@ export default function PreviewMonitor() {
     </>
   );
 
-  const mockTransport = (
-    <>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          aria-label={playing ? "Pause" : "Play"}
-          aria-pressed={playing}
-          onClick={togglePlay}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-soft text-accent hover:brightness-125"
-        >
-          <span aria-hidden>{playing ? "❚❚" : "▶"}</span>
-        </button>
-        <output aria-label="Timecode" aria-live="off" className="font-mono text-sm tabular-nums">
-          {formatTimecode(displayTime)}
-        </output>
-      </div>
-
-      <div role="radiogroup" aria-label="Aspect ratio" className="flex gap-1">
-        {RATIOS.map((r) => (
-          <button
-            key={r.value}
-            type="button"
-            role="radio"
-            aria-checked={aspectRatio === r.value}
-            onClick={() => setAspectRatio(r.value)}
-            className={`rounded px-2 py-1 font-mono text-[11px] transition-colors ${
-              aspectRatio === r.value
-                ? "bg-accent-soft text-accent"
-                : "bg-raised text-muted hover:text-text"
-            }`}
-          >
-            {r.value}
-          </button>
-        ))}
-      </div>
-    </>
-  );
-
   return (
     <section
       aria-label="Preview monitor"
@@ -273,13 +228,8 @@ export default function PreviewMonitor() {
         ) : (
           <div className="flex min-w-0 items-center gap-2">
             <h2 className="truncate font-semibold">
-              {realMode ? activeRealProjectId : (project?.name ?? "Untitled")}
+              {realMode ? activeRealProjectId : "Select a real project"}
             </h2>
-            {!realMode && (
-              <span className="shrink-0 font-mono text-[11px] text-muted">
-                {project ? `${project.resolution} · ${project.fps} fps · ${project.duration}` : "—"}
-              </span>
-            )}
           </div>
         )}
         <div className="flex shrink-0 items-center gap-1.5">
@@ -355,12 +305,21 @@ export default function PreviewMonitor() {
               </button>
             </>
           )}
-          {realMode ? (
-            doc === null ? <Chip tone="warn">Read-only</Chip> : null
-          ) : (
-            <Chip tone="warn">Mock preview</Chip>
-          )}
+          {realMode && doc === null ? <Chip tone="warn">Read-only</Chip> : null}
         </div>
+      </div>
+      <div role="status" aria-live="polite" className="border-b border-edge bg-panel px-3 py-2 text-[11px]">
+        {!realMode
+          ? "1 · SELECT PROJECT — Loading real local projects."
+          : !draftMode
+            ? "2–3 · PREVIEW SOURCE — Preview the immutable source, then create a protected draft to edit."
+            : draftDirty
+              ? "4–5 · EDIT DRAFT — Unsaved changes. Save this draft version before rendering."
+              : renderJob?.status === "succeeded"
+                ? "7 · DOWNLOAD — MP4 ready for download."
+                : renderActive
+                  ? "6 · RENDER — Rendering locally. Keep Studio open."
+                  : "6 · RENDER — Saved draft is ready to render locally."}
       </div>
       {draftError !== null && (
         <p role="alert" className="border-b border-edge bg-danger/10 px-3 py-1.5 text-[11px] text-danger">
@@ -414,7 +373,11 @@ export default function PreviewMonitor() {
       )}
 
       <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
-        {realMode && documentStatus === "loading" ? (
+        {!realMode ? (
+          <div role="status" className="max-w-md rounded-md border border-dashed border-edge p-4 text-center text-muted">
+            Loading real local projects… No demo content is shown in operator mode.
+          </div>
+        ) : documentStatus === "loading" ? (
           <div role="status" aria-label="Loading project" className="text-muted">
             Loading project…
           </div>
@@ -490,7 +453,7 @@ export default function PreviewMonitor() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-edge px-3 py-2">
-        {realMode ? realTransport : mockTransport}
+        {realMode ? realTransport : <span className="text-muted">Preview controls appear after a real project loads.</span>}
 
         <div className="flex gap-1">
           <button

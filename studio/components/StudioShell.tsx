@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import type { PanelVisibility } from "@/lib/types";
 import { useStudioStore } from "@/state/studioStore";
-import AppRail from "./AppRail";
 import Inspector from "./Inspector";
 import MediaBrowser from "./MediaBrowser";
 import PreviewMonitor from "./PreviewMonitor";
@@ -68,7 +67,7 @@ export default function StudioShell() {
     "minmax(360px, 1fr)",
     ...(showInspector ? ["304px"] : []),
   ];
-  const outerCols = ["56px", ...(showNav ? ["236px"] : []), ...centerCols].join(" ");
+  const outerCols = [...(showNav ? ["236px"] : []), ...centerCols].join(" ");
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
@@ -86,7 +85,7 @@ export default function StudioShell() {
               <button
                 key={p.key}
                 type="button"
-                aria-label={p.label}
+                aria-label={`${effective ? "Hide" : "Show"} ${p.label}`}
                 aria-pressed={effective}
                 disabled={suppressed}
                 title={suppressed ? "Hidden while preview is fullscreen" : undefined}
@@ -97,7 +96,7 @@ export default function StudioShell() {
                     : "bg-raised text-muted hover:text-text"
                 }`}
               >
-                {p.label.replace(" panel", "")}
+                {effective ? "Hide" : "Show"} {p.label.replace(" panel", "")}
               </button>
             );
           })}
@@ -105,7 +104,6 @@ export default function StudioShell() {
       </header>
 
       <div className="grid min-h-0 flex-1" style={{ gridTemplateColumns: outerCols }}>
-        <AppRail />
         {showNav && <ProjectNav />}
         <div
           className="grid min-h-0 min-w-0"

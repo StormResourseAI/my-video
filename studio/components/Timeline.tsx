@@ -237,6 +237,14 @@ export default function Timeline() {
   if (realMode) return <RealTimeline />;
 
   return (
+    <section aria-label="Timeline" className="flex h-full items-center justify-center border-t border-edge bg-panel p-4 text-muted">
+      Select a real project to view its read-only sequence.
+    </section>
+  );
+
+  /* Legacy fixture renderer is unreachable in production and retained only while old fixture tests are reconciled. */
+  /* c8 ignore start */
+  return (
     <section
       aria-label="Timeline"
       className="flex h-full min-h-0 flex-col border-t border-edge bg-panel"
@@ -395,4 +403,5 @@ export default function Timeline() {
       </div>
     </section>
   );
+  /* c8 ignore stop */
 }

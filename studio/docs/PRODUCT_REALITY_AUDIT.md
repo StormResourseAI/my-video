@@ -34,7 +34,7 @@ Audit date: 2026-07-19. Baseline: `b1a901698863af064fac8bf2c7ad1b4c1f11c400`.
 | Save Draft | PreviewMonitor | draft header | Explicit version save | `PUT /api/drafts/:id` | WORKING | — | Prominent; disabled reason retained |
 | Render MP4 | PreviewMonitor | draft header | Local H.264 render | `POST /api/renders` | WORKING | — | Blocked while dirty/ineligible/busy |
 | Exit draft | PreviewMonitor | draft header | Return to immutable source | session/store | WORKING | — | Unsaved discard confirmation retained |
-| Download MP4 | PreviewMonitor | render status | Downloads completed output | `GET /api/renders/:id/output` | WORKING | — | Prominent on success |
+| Download MP4 | PreviewMonitor | render status | Downloads completed output for the current saved draft version | `GET /api/renders/:id/output` | WORKING | — | Prominent only when `renderJob.draftVersion === draft.version`; a successful newer save clears stale output state |
 | Workflow status strip | PreviewMonitor | below header | Identifies next action | derived state | IMPLEMENT | HIGH | Added seven-state guidance |
 | Draft title | Inspector | draft settings | Edits title in memory | draft working copy | WORKING | — | Retained with explicit-save context |
 | Background color | Inspector | draft settings | Edits validated color | draft working copy | PARTIAL | MEDIUM | Plain label and inline format error |
@@ -52,11 +52,15 @@ Audit date: 2026-07-19. Baseline: `b1a901698863af064fac8bf2c7ad1b4c1f11c400`.
 
 Before remediation, startup selected a fixture project and exposed a mock preview; a user could click dead rail and section controls indefinitely. After remediation the first preview-ready real project is selected deterministically. In live QA, real preview appeared without a project click; Create Draft was the first primary action; editing immediately showed Unsaved changes; Render was disabled until Save Draft; refresh restored saved v2; render and download were explicit.
 
-Measured locally: first real preview under one second after page load; draft creation under one second; editable fields immediately visible after creation; save under one second; render initiation explicit after save. The 294-frame acceptance render completed in about 54 seconds.
+Measured locally: first real preview under one second after page load; draft creation under one second; editable fields immediately visible after creation; save under one second; render initiation explicit after save. The original 294-frame acceptance render completed in about 54 seconds. Remediation validation performed no additional real render.
 
 ## Fixture dependency map
 
-Fixtures remain in `studio/fixtures/` for historical tests and are still referenced by legacy store fields and unreachable fallback code. Production navigation, project rows, media browser, inspector, and initial preview no longer select or display fixture data. No demo route or flag is exposed in operator mode.
+Fixtures remain in `studio/fixtures/` as unused historical data. Production components and the Zustand store no longer import them; the legacy rail and unreachable fixture timeline renderer were removed. No demo route or flag is exposed in operator mode.
+
+## Truthful discovery and versioned output
+
+The central workspace now distinguishes loading, project-list failure, zero materialized projects, and projects present with no preview-ready cache. Only the deterministic first preview-ready project is auto-selected. A completed render is current only when its `draftVersion` equals the saved draft version. Saving a newer draft clears the former render from current UI state, restores the Render action, and prevents the obsolete download from being promoted as deliverable output.
 
 ## Deferred roadmap
 

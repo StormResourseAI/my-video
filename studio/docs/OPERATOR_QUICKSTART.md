@@ -9,4 +9,6 @@
 7. Choose **Render MP4**, review the local-render summary, and confirm.
 8. Keep Studio open while rendering, then choose **Download MP4**.
 
+Download is offered only for the current saved draft version. After saving new edits, render that new version before delivery.
+
 Studio never edits source projects or source media. It does not autosave. Exit Draft returns safely to the source; unsaved edits require discard confirmation.

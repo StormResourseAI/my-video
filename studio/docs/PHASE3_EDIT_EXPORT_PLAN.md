@@ -1,6 +1,7 @@
 # Phase 3 — Non-Destructive Editing, Draft Persistence, and Local Export MVP
 
-Status: implementation plan. Outcome section is appended after delivery.
+Status: implemented. See the Implementation Outcome section at the end and
+PHASE3_EDIT_EXPORT_CERTIFICATION.md for the certified results.
 
 ## Goal
 
@@ -129,3 +130,29 @@ surface is untouched. User data under the data root is never written by
 tracked code paths outside the write subsystem, and originals are never
 modified, so rollback has no data-migration step. Drafts/renders on disk are
 plain JSON/MP4 the operator may delete manually at any time.
+
+## Implementation Outcome
+
+Delivered as planned with these notes:
+
+- The source fingerprint reads the RAW engine props cache (whose clip `src`
+  values are engine-relative), so it extracts clip file names structurally
+  instead of reusing the API-shape props validator. The worker mirrors the
+  same extraction byte-for-byte.
+- Clip enable/disable is a draft-level flag; disabled clips are simply
+  omitted from the derived engine props (the engine schema has no enabled
+  field and its validators strip unknown keys).
+- Trim semantics: draft trims are frames removed from each end of the
+  materialized clip window; derived engine trims offset the window's own
+  base trim, and the derived clip duration is the trimmed effective length,
+  keeping the engine's calculateMetadata in exact agreement with
+  `durationInFramesFor`.
+- Draft-mode UI state (including the session-scoped draft restore used by
+  the refresh flow) lives in the existing zustand store; sessionStorage
+  holds only `{projectId, draftId}` — never draft content.
+- Two Phase 2 robustness defects found during the merge gate were repaired
+  here: the media-missing warning is bounded to the document validator's
+  500-char cap, and `getRoots` re-resolves roots that did not exist at first
+  request.
+- No bounded/test-only render configuration was needed: the certification
+  render is the real full-duration product path (286 frames, H.264).

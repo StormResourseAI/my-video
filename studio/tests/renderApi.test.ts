@@ -228,6 +228,19 @@ describe("render queue", () => {
     fakeRuns[0].exit(0); // release for cleanup
   });
 
+  it("two concurrent render POSTs cannot both pass the single-job check", async () => {
+    installFakeRunner(); // never exits
+    const draft = await createSavedDraft();
+    const body = JSON.stringify({ draftId: draft.draftId, expectedDraftVersion: draft.version });
+    const [a, b] = await Promise.all([
+      postRender(writeReq("/api/renders", body)),
+      postRender(writeReq("/api/renders", body)),
+    ]);
+    expect([a.status, b.status].sort()).toEqual([202, 409]);
+    expect(fakeRuns).toHaveLength(1);
+    fakeRuns[0].exit(0);
+  });
+
   it("rejects an unsaved/stale draft version (409)", async () => {
     const draft = await createSavedDraft();
     const res = await postRender(

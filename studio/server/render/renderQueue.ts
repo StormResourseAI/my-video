@@ -18,6 +18,9 @@ import { spawnRenderWorker, type RenderRunner } from "./renderRunner";
 export const RENDER_TIMEOUT_MS = 30 * 60_000;
 
 let activeRender: { renderId: string; kill: () => void } | null = null;
+// Reserved synchronously before the first await in startRender so two
+// concurrent POSTs cannot both pass the single-job check (TOCTOU).
+let renderStarting = false;
 let runner: RenderRunner = spawnRenderWorker;
 
 /** Test seam: replace the process-spawning runner with a fake. */
@@ -28,6 +31,7 @@ export function setRenderRunnerForTesting(next: RenderRunner | null): void {
 /** Test seam: forget a stuck active render between tests. */
 export function resetRenderQueueForTesting(): void {
   activeRender = null;
+  renderStarting = false;
 }
 
 export function isRenderActive(): boolean {
@@ -35,9 +39,18 @@ export function isRenderActive(): boolean {
 }
 
 export async function startRender(draftId: string, expectedDraftVersion: number): Promise<RenderJobV1> {
-  if (activeRender !== null) {
+  if (activeRender !== null || renderStarting) {
     throw new WriteError("render_busy", "A render is already running.", 409);
   }
+  renderStarting = true;
+  try {
+    return await startRenderLocked(draftId, expectedDraftVersion);
+  } finally {
+    renderStarting = false;
+  }
+}
+
+async function startRenderLocked(draftId: string, expectedDraftVersion: number): Promise<RenderJobV1> {
   const draft = await getDraft(draftId);
   if (draft.version !== expectedDraftVersion) {
     throw new WriteError(

@@ -229,11 +229,16 @@ export async function getProject(slug: string): Promise<ProjectDocumentV1> {
     });
   }
   if (missing.length > 0) {
+    // Bounded so the document always passes its own validator (≤500 chars).
+    let missingSummary = `Staged media missing: ${missing.join(", ")}`;
+    if (missingSummary.length > 500) {
+      missingSummary = `${missingSummary.slice(0, 450)}… (${missing.length} files total)`;
+    }
     return {
       ...base,
       assets,
       status: "media-missing",
-      warnings: [...warnings, `Staged media missing: ${missing.join(", ")}`],
+      warnings: [...warnings, missingSummary],
     };
   }
 

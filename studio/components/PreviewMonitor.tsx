@@ -3,11 +3,12 @@
 import { useEffect, useRef } from "react";
 import type { PlayerRef } from "@remotion/player";
 import { PROJECTS, TIMELINE_LENGTH } from "@/fixtures";
+import { deriveEngineProps, type StudioDraftV1 } from "@/lib/draftDocument";
 import { formatTimecode } from "@/lib/format";
-import { toPlayerConfig } from "@/lib/projectAdapter";
+import { toPlayerConfig, type PlayerConfig } from "@/lib/projectAdapter";
 import type { ProjectDocumentV1 } from "@/lib/projectDocument";
 import type { AspectRatio } from "@/lib/types";
-import { useStudioStore } from "@/state/studioStore";
+import { useStudioStore, type DraftWorking } from "@/state/studioStore";
 import RealPreview from "./RealPreview";
 import { Chip } from "./ui";
 
@@ -33,6 +34,33 @@ function RealHeader({ doc }: { doc: ProjectDocumentV1 }) {
       <Chip>Cached props</Chip>
       {doc.freshness === "stale" && <Chip tone="warn">Stale</Chip>}
       {doc.freshness === "unknown" && <Chip>Freshness unknown</Chip>}
+    </div>
+  );
+}
+
+function DraftHeader({
+  doc,
+  draft,
+  dirty,
+}: {
+  doc: ProjectDocumentV1;
+  draft: StudioDraftV1;
+  dirty: boolean;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      <h2 className="truncate font-semibold">{draft.draftTitle ?? "Untitled draft"}</h2>
+      <span className="shrink-0 font-mono text-[11px] text-muted">
+        from {doc.projectName}
+      </span>
+      <Chip tone="accent">Draft</Chip>
+      {dirty ? (
+        <Chip tone="warn">Unsaved changes</Chip>
+      ) : (
+        <Chip tone="ok">Saved v{draft.version}</Chip>
+      )}
+      {draft.renderEligibility === "source-changed" && <Chip tone="warn">Source changed</Chip>}
+      {draft.renderEligibility === "no-enabled-clips" && <Chip tone="warn">No enabled clips</Chip>}
     </div>
   );
 }
@@ -78,10 +106,41 @@ export default function PreviewMonitor() {
   const previewScale = useStudioStore((s) => s.previewScale);
   const setPreviewScale = useStudioStore((s) => s.setPreviewScale);
 
+  const draft = useStudioStore((s) => s.draft);
+  const draftWorking = useStudioStore((s) => s.draftWorking);
+  const draftDirty = useStudioStore((s) => s.draftDirty);
+  const draftBusy = useStudioStore((s) => s.draftBusy);
+  const draftError = useStudioStore((s) => s.draftError);
+  const createDraftFromSource = useStudioStore((s) => s.createDraftFromSource);
+  const saveDraft = useStudioStore((s) => s.saveDraft);
+  const exitDraft = useStudioStore((s) => s.exitDraft);
+  const renderJob = useStudioStore((s) => s.renderJob);
+  const renderBusy = useStudioStore((s) => s.renderBusy);
+  const renderError = useStudioStore((s) => s.renderError);
+  const startDraftRender = useStudioStore((s) => s.startDraftRender);
+  const refreshRenderJob = useStudioStore((s) => s.refreshRenderJob);
+
   const playerRef = useRef<PlayerRef>(null);
 
   const realMode = activeRealProjectId !== null;
-  const config = doc !== null ? toPlayerConfig(doc) : null;
+  const draftMode = draft !== null && draftWorking !== null;
+  const draftDerivation =
+    draftMode && doc !== null && doc.props !== null
+      ? deriveEngineProps(draftWorking as DraftWorking, doc.props, (c) => `api/assets/${c.sourceAssetId}`)
+      : null;
+  const config: PlayerConfig | null = draftMode
+    ? draftDerivation !== null && doc !== null && doc.composition !== null
+      ? {
+          inputProps: draftDerivation.props,
+          durationInFrames: draftDerivation.durationInFrames,
+          fps: doc.composition.fps,
+          compositionWidth: doc.composition.width,
+          compositionHeight: doc.composition.height,
+        }
+      : null
+    : doc !== null
+      ? toPlayerConfig(doc)
+      : null;
   const project = PROJECTS.find((p) => p.id === activeProjectId);
   const ratio = RATIOS.find((r) => r.value === aspectRatio) ?? RATIOS[0];
   const displayTime = currentTime % TIMELINE_LENGTH;
@@ -92,6 +151,15 @@ export default function PreviewMonitor() {
     const id = setInterval(() => tick(0.1), 100);
     return () => clearInterval(id);
   }, [playing, realMode, tick]);
+
+  // Poll the active render job until it reaches a terminal state.
+  const renderActive =
+    renderJob !== null && (renderJob.status === "queued" || renderJob.status === "running");
+  useEffect(() => {
+    if (!renderActive) return;
+    const id = setInterval(() => void refreshRenderJob(), 2000);
+    return () => clearInterval(id);
+  }, [renderActive, refreshRenderJob]);
 
   const fps = config?.fps ?? 30;
   const durationInFrames = config?.durationInFrames ?? 0;
@@ -198,7 +266,9 @@ export default function PreviewMonitor() {
       className="flex h-full min-h-0 flex-col bg-ink"
     >
       <div className="flex items-center justify-between gap-2 border-b border-edge px-3 py-2">
-        {realMode && doc !== null ? (
+        {draftMode && doc !== null ? (
+          <DraftHeader doc={doc} draft={draft as StudioDraftV1} dirty={draftDirty} />
+        ) : realMode && doc !== null ? (
           <RealHeader doc={doc} />
         ) : (
           <div className="flex min-w-0 items-center gap-2">
@@ -212,12 +282,136 @@ export default function PreviewMonitor() {
             )}
           </div>
         )}
-        {realMode ? (
-          doc === null ? <Chip tone="warn">Read-only</Chip> : null
-        ) : (
-          <Chip tone="warn">Mock preview</Chip>
-        )}
+        <div className="flex shrink-0 items-center gap-1.5">
+          {realMode && !draftMode && doc !== null && doc.status === "ready" && (
+            <button
+              type="button"
+              onClick={() => void createDraftFromSource()}
+              disabled={draftBusy !== "idle"}
+              className="rounded bg-accent-soft px-2.5 py-1 text-[11px] font-semibold text-accent hover:brightness-125 disabled:opacity-40"
+            >
+              {draftBusy === "creating" ? "Creating…" : "Create Draft"}
+            </button>
+          )}
+          {draftMode && (
+            <>
+              <button
+                type="button"
+                onClick={() => void saveDraft()}
+                disabled={!draftDirty || draftBusy !== "idle"}
+                title={draftDirty ? undefined : "No unsaved changes"}
+                className="rounded bg-accent-soft px-2.5 py-1 text-[11px] font-semibold text-accent hover:brightness-125 disabled:opacity-40"
+              >
+                {draftBusy === "saving" ? "Saving…" : "Save Draft"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (draftDerivation === null) return;
+                  const seconds = (draftDerivation.durationInFrames / (doc?.composition?.fps ?? 30)).toFixed(1);
+                  if (
+                    window.confirm(
+                      `Render draft v${(draft as StudioDraftV1).version} to MP4?\n\n` +
+                        `${draftDerivation.props.clips.length} clip(s) · ` +
+                        `${draftDerivation.durationInFrames} frames (~${seconds}s) · 1080×1920 H.264`,
+                    )
+                  ) {
+                    void startDraftRender();
+                  }
+                }}
+                disabled={
+                  draftDirty ||
+                  renderBusy ||
+                  renderActive ||
+                  draftDerivation === null ||
+                  (draft as StudioDraftV1).renderEligibility !== "eligible"
+                }
+                title={
+                  draftDirty
+                    ? "Save the draft before rendering"
+                    : (draft as StudioDraftV1).renderEligibility === "source-changed"
+                      ? "Source changed — create a new draft to render"
+                      : renderActive
+                        ? "A render is already running"
+                        : undefined
+                }
+                className="rounded bg-accent-soft px-2.5 py-1 text-[11px] font-semibold text-accent hover:brightness-125 disabled:opacity-40"
+              >
+                Render MP4
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (
+                    !draftDirty ||
+                    window.confirm("Discard unsaved draft changes and return to the source preview?")
+                  ) {
+                    exitDraft();
+                  }
+                }}
+                className="rounded bg-raised px-2.5 py-1 text-[11px] text-muted hover:text-text"
+              >
+                Exit draft
+              </button>
+            </>
+          )}
+          {realMode ? (
+            doc === null ? <Chip tone="warn">Read-only</Chip> : null
+          ) : (
+            <Chip tone="warn">Mock preview</Chip>
+          )}
+        </div>
       </div>
+      {draftError !== null && (
+        <p role="alert" className="border-b border-edge bg-danger/10 px-3 py-1.5 text-[11px] text-danger">
+          {draftError}
+        </p>
+      )}
+      {renderError !== null && (
+        <p role="alert" className="border-b border-edge bg-danger/10 px-3 py-1.5 text-[11px] text-danger">
+          {renderError}
+        </p>
+      )}
+      {draftMode && renderJob !== null && (
+        <div
+          role="status"
+          aria-label="Render status"
+          className="flex flex-wrap items-center gap-2 border-b border-edge px-3 py-1.5 text-[11px]"
+        >
+          <span className="font-semibold uppercase tracking-widest text-muted">Render</span>
+          <Chip
+            tone={
+              renderJob.status === "succeeded"
+                ? "ok"
+                : renderJob.status === "failed" || renderJob.status === "timed-out"
+                  ? "warn"
+                  : "accent"
+            }
+          >
+            {renderJob.status}
+          </Chip>
+          <span className="font-mono text-muted">
+            {renderJob.durationInFrames}f · draft v{renderJob.draftVersion}
+          </span>
+          {renderJob.status === "succeeded" && (
+            <a
+              href={`/api/renders/${renderJob.renderId}/output`}
+              download
+              className="rounded bg-accent-soft px-2 py-0.5 font-semibold text-accent hover:brightness-125"
+            >
+              Download MP4
+              {renderJob.outputBytes !== null
+                ? ` (${(renderJob.outputBytes / (1024 * 1024)).toFixed(1)} MB)`
+                : ""}
+            </a>
+          )}
+          {(renderJob.status === "failed" || renderJob.status === "timed-out") && (
+            <span role="alert" className="text-danger">
+              {renderJob.error ?? "Render did not complete."}
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
         {realMode && documentStatus === "loading" ? (
@@ -228,6 +422,13 @@ export default function PreviewMonitor() {
           <RealStatusPanel
             title="Project could not be loaded"
             messages={[documentError ?? "Unknown error."]}
+          />
+        ) : draftMode && config === null ? (
+          <RealStatusPanel
+            title="Draft cannot be previewed"
+            messages={[
+              "Enable at least one clip and keep trims inside each clip's source length.",
+            ]}
           />
         ) : realMode && doc !== null && config === null ? (
           <RealStatusPanel

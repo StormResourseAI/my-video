@@ -291,9 +291,171 @@ function RealDetails() {
   );
 }
 
+const HEX6_RE = /^#[0-9a-fA-F]{6}$/;
+const COLOR_INPUT_RE = /^#[0-9a-fA-F]{3,8}$/;
+
+/** Draft-edit form: the only writable controls in Studio. Edits stay in
+ *  browser state until Save Draft is pressed in the preview header. */
+function DraftDetails() {
+  const draft = useStudioStore((s) => s.draft);
+  const draftWorking = useStudioStore((s) => s.draftWorking);
+  const selection = useStudioStore((s) => s.selection);
+  const setDraftTitle = useStudioStore((s) => s.setDraftTitle);
+  const setDraftBackground = useStudioStore((s) => s.setDraftBackground);
+  const setDraftTransition = useStudioStore((s) => s.setDraftTransition);
+  const setDraftTrim = useStudioStore((s) => s.setDraftTrim);
+  const toggleDraftClip = useStudioStore((s) => s.toggleDraftClip);
+
+  if (draft === null || draftWorking === null) return null;
+
+  const clipIndex =
+    selection.kind === "clip"
+      ? draftWorking.clips.findIndex((c) => c.sourceAssetId === selection.clipId)
+      : -1;
+  const clip = clipIndex >= 0 ? draftWorking.clips[clipIndex] : null;
+  const colorValid = COLOR_INPUT_RE.test(draftWorking.backgroundColor);
+
+  return (
+    <>
+      <div className="border-b border-edge px-3 py-2">
+        <p className="truncate font-semibold">Draft edit</p>
+        <p className="mt-0.5 text-[11px] text-muted">
+          v{draft.version} · source {draft.sourceProjectId} (read-only)
+        </p>
+      </div>
+      <Group title="Draft">
+        <label className="flex flex-col gap-1 text-muted">
+          <span>Title</span>
+          <input
+            type="text"
+            aria-label="Draft title"
+            value={draftWorking.draftTitle ?? ""}
+            maxLength={200}
+            placeholder="Untitled"
+            onChange={(e) => setDraftTitle(e.target.value)}
+            className="rounded border border-edge bg-raised px-1.5 py-1 font-mono text-[11px] text-text"
+          />
+        </label>
+        <label className="flex items-center justify-between gap-2 text-muted">
+          <span>Background</span>
+          {HEX6_RE.test(draftWorking.backgroundColor) ? (
+            <span className="flex items-center gap-1.5">
+              <span className="font-mono text-[11px]">{draftWorking.backgroundColor}</span>
+              <input
+                type="color"
+                aria-label="Background color"
+                value={draftWorking.backgroundColor}
+                onChange={(e) => setDraftBackground(e.target.value)}
+                className="h-6 w-10 cursor-pointer rounded border border-edge bg-raised"
+              />
+            </span>
+          ) : (
+            <input
+              type="text"
+              aria-label="Background color"
+              value={draftWorking.backgroundColor}
+              maxLength={9}
+              aria-invalid={!colorValid}
+              onChange={(e) => setDraftBackground(e.target.value)}
+              className={`w-24 rounded border px-1.5 py-1 text-right font-mono text-[11px] text-text ${
+                colorValid ? "border-edge bg-raised" : "border-danger bg-danger/10"
+              }`}
+            />
+          )}
+        </label>
+        {!colorValid && (
+          <p role="alert" className="text-[11px] text-danger">
+            Use a hex color like #111111.
+          </p>
+        )}
+        <label className="flex items-center justify-between gap-2 text-muted">
+          <span>Transition frames</span>
+          <input
+            type="number"
+            aria-label="Transition frames"
+            min={0}
+            max={300}
+            step={1}
+            value={draftWorking.transitionFrames}
+            onChange={(e) => setDraftTransition(Number(e.target.value))}
+            className="w-20 rounded border border-edge bg-raised px-1.5 py-1 text-right font-mono text-[11px] text-text"
+          />
+        </label>
+      </Group>
+      {clip !== null ? (
+        <Group title={`Clip · ${clip.fileName}`}>
+          <p className="text-[11px] text-muted">
+            Source window: {clip.sourceDurationInFrames} frames
+          </p>
+          <label className="flex items-center justify-between gap-2 text-muted">
+            <span>Trim before</span>
+            <input
+              type="number"
+              aria-label="Trim before"
+              min={0}
+              max={Math.max(0, clip.sourceDurationInFrames - clip.trimAfter - 1)}
+              step={1}
+              value={clip.trimBefore}
+              onChange={(e) => setDraftTrim(clipIndex, "trimBefore", Number(e.target.value))}
+              className="w-20 rounded border border-edge bg-raised px-1.5 py-1 text-right font-mono text-[11px] text-text"
+            />
+          </label>
+          <label className="flex items-center justify-between gap-2 text-muted">
+            <span>Trim after</span>
+            <input
+              type="number"
+              aria-label="Trim after"
+              min={0}
+              max={Math.max(0, clip.sourceDurationInFrames - clip.trimBefore - 1)}
+              step={1}
+              value={clip.trimAfter}
+              onChange={(e) => setDraftTrim(clipIndex, "trimAfter", Number(e.target.value))}
+              className="w-20 rounded border border-edge bg-raised px-1.5 py-1 text-right font-mono text-[11px] text-text"
+            />
+          </label>
+          <p className="text-[11px] text-muted">
+            Effective length: {clip.sourceDurationInFrames - clip.trimBefore - clip.trimAfter}{" "}
+            frames
+          </p>
+          <button
+            type="button"
+            aria-pressed={clip.enabled}
+            onClick={() => toggleDraftClip(clipIndex)}
+            className={`self-start rounded px-2 py-1 text-[11px] font-semibold ${
+              clip.enabled ? "bg-accent-soft text-accent" : "bg-raised text-muted"
+            }`}
+          >
+            {clip.enabled ? "Enabled" : "Disabled"}
+          </button>
+        </Group>
+      ) : (
+        <div className="px-3 py-2 text-[11px] text-muted">
+          Select a clip in the timeline to trim or toggle it.
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function Inspector() {
   const selection = useStudioStore((s) => s.selection);
   const realMode = useStudioStore((s) => s.activeRealProjectId) !== null;
+  const draftMode = useStudioStore((s) => s.draftWorking) !== null;
+
+  if (draftMode) {
+    return (
+      <aside
+        aria-label="Inspector"
+        className="flex h-full min-h-0 flex-col overflow-y-auto border-l border-edge bg-panel"
+      >
+        <div className="flex items-center justify-between border-b border-edge px-3 py-2">
+          <h2 className="text-[11px] font-bold tracking-widest text-muted uppercase">Inspector</h2>
+          <Chip tone="accent">Draft edit</Chip>
+        </div>
+        <DraftDetails />
+      </aside>
+    );
+  }
 
   if (realMode) {
     return (

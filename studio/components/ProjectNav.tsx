@@ -19,6 +19,19 @@ export default function ProjectNav() {
   const activeRealProjectId = useStudioStore((s) => s.activeRealProjectId);
   const loadRealProjects = useStudioStore((s) => s.loadRealProjects);
   const selectRealProject = useStudioStore((s) => s.selectRealProject);
+  const draftActive = useStudioStore((s) => s.draftWorking) !== null;
+  const draftDirty = useStudioStore((s) => s.draftDirty);
+  const exitDraft = useStudioStore((s) => s.exitDraft);
+
+  // Leaving an active draft is explicit: confirm before discarding unsaved
+  // in-memory changes, and always clear draft mode before switching.
+  const switchProject = (projectId: string) => {
+    if (draftActive) {
+      if (draftDirty && !window.confirm("Discard unsaved draft changes?")) return;
+      exitDraft();
+    }
+    void selectRealProject(projectId);
+  };
 
   useEffect(() => {
     if (realProjectsStatus === "idle") void loadRealProjects();
@@ -67,7 +80,7 @@ export default function ProjectNav() {
                 <button
                   type="button"
                   aria-current={isActive ? "true" : undefined}
-                  onClick={() => void selectRealProject(p.projectId)}
+                  onClick={() => switchProject(p.projectId)}
                   className={`w-full rounded-md border px-2.5 py-2 text-left transition-colors ${
                     isActive
                       ? "border-accent/50 bg-accent-soft"

@@ -34,6 +34,13 @@ const SERVER_FILES = () => [
   ...scanFiles(join(process.cwd(), "app", "api")),
 ];
 
+// Phase 3 write/render zones: the ONLY server modules allowed write-capable
+// fs APIs; renderRunner.ts is additionally the only child-process site.
+// Their dedicated boundary tests live in phase3Boundaries.test.ts.
+const WRITE_ZONE = [join("server", "write"), join("server", "render")];
+const READ_ONLY_SERVER_FILES = () =>
+  SERVER_FILES().filter((f) => !WRITE_ZONE.some((z) => f.includes(z)));
+
 const NODE_IMPORT =
   /(?:from\s+|require\(|import\(|import\s+)["'](?:node:)?(fs|fs\/promises|path|child_process|net|http|https|http2|tls|dns|dgram|os|worker_threads)["']/;
 
@@ -66,7 +73,7 @@ describe("phase 2 static boundaries", () => {
     expect(missing).toEqual([]);
   });
 
-  it("no write-capable filesystem method exists in the server zone", () => {
+  it("no write-capable filesystem method exists outside the Phase 3 write zone", () => {
     const WRITE_FS =
       /\b(?:fs|fsp|promises)\s*\.\s*(writeFile|appendFile|createWriteStream|mkdir|mkdtemp|rmdir|rm|rename|unlink|chmod|chown|truncate|cp|copyFile|link|symlink|watch|open|write|writev)\b/;
     // Also catch named write imports from node:fs (incl. fs/promises).
@@ -74,13 +81,15 @@ describe("phase 2 static boundaries", () => {
       /import\s*\{[^}]*\b(writeFile|writeFileSync|appendFile|appendFileSync|createWriteStream|mkdir|mkdirSync|rm|rmSync|rmdir|rename|renameSync|unlink|unlinkSync|copyFile|copyFileSync|chmod|chown|truncate|symlink|symlinkSync|link|linkSync|mkdtemp|mkdtempSync|watch|open|openSync|write|writeSync|writev)\b[^}]*\}\s*from\s*["'](?:node:)?fs/;
     // fs.open / open() with a write/append mode flag.
     const OPEN_WRITE_MODE = /\bopen(?:Sync)?\s*\([^)]*["'][wa]/;
-    expect(offendersIn(SERVER_FILES(), WRITE_FS)).toEqual([]);
-    expect(offendersIn(SERVER_FILES(), NAMED_WRITE_IMPORT)).toEqual([]);
-    expect(offendersIn(SERVER_FILES(), OPEN_WRITE_MODE)).toEqual([]);
+    expect(offendersIn(READ_ONLY_SERVER_FILES(), WRITE_FS)).toEqual([]);
+    expect(offendersIn(READ_ONLY_SERVER_FILES(), NAMED_WRITE_IMPORT)).toEqual([]);
+    expect(offendersIn(READ_ONLY_SERVER_FILES(), OPEN_WRITE_MODE)).toEqual([]);
   });
 
-  it("no child-process, renderer, bundler, or CLI capability exists anywhere in studio runtime", () => {
-    const ALL = [...CLIENT_FILES(), ...SERVER_FILES()];
+  it("no child-process, renderer, bundler, or CLI capability exists outside the render runner", () => {
+    const ALL = [...CLIENT_FILES(), ...SERVER_FILES()].filter(
+      (f) => !f.endsWith(join("server", "render", "renderRunner.ts")),
+    );
     const FORBIDDEN =
       /child_process|@remotion\/(renderer|bundler|cli)|\brenderMedia\b|\bspawn(Sync)?\s*\(|\bexecFile(Sync)?\s*\(|\bfork\s*\(/;
     expect(offendersIn(ALL, FORBIDDEN)).toEqual([]);
@@ -94,7 +103,16 @@ describe("phase 2 static boundaries", () => {
     expect(offendersIn(SERVER_FILES(), EGRESS)).toEqual([]);
   });
 
-  it("route handlers export only GET/HEAD and stay dynamic", () => {
+  it("route handlers export only their documented methods and stay dynamic", () => {
+    // Phase 3 write routes are individually allowlisted; everything else
+    // remains GET/HEAD. DELETE exists nowhere.
+    const WRITE_ROUTE_METHODS: Record<string, string[]> = {
+      [join("app", "api", "drafts", "route.ts")]: ["POST"],
+      [join("app", "api", "drafts", "[draftId]", "route.ts")]: ["GET", "PUT"],
+      [join("app", "api", "renders", "route.ts")]: ["POST"],
+      [join("app", "api", "renders", "[renderId]", "route.ts")]: ["GET"],
+      [join("app", "api", "renders", "[renderId]", "output", "route.ts")]: ["GET", "HEAD"],
+    };
     const routes = scanFiles(join(process.cwd(), "app", "api")).filter((f) =>
       f.endsWith("route.ts"),
     );
@@ -104,8 +122,14 @@ describe("phase 2 static boundaries", () => {
       const methods = [...source.matchAll(/export\s+(?:async\s+)?function\s+(\w+)/g)].map(
         (m) => m[1],
       );
+      const allowKey = Object.keys(WRITE_ROUTE_METHODS).find((k) => route.endsWith(k));
+      const allowed = allowKey !== undefined ? WRITE_ROUTE_METHODS[allowKey] : ["GET", "HEAD"];
       expect(methods.length).toBeGreaterThan(0);
-      expect(methods.every((m) => m === "GET" || m === "HEAD")).toBe(true);
+      expect(
+        methods.every((m) => allowed.includes(m)),
+        `${route} exports ${methods.join(",")}; allowed: ${allowed.join(",")}`,
+      ).toBe(true);
+      expect(methods).not.toContain("DELETE");
       expect(source).toContain(`export const dynamic = "force-dynamic"`);
     }
   });

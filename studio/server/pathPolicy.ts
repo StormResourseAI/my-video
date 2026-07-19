@@ -45,7 +45,23 @@ async function realpathOrNull(p: string): Promise<string | null> {
  *  falls back to the parent of the studio working directory. Never derived
  *  from any client input. */
 export async function getRoots(): Promise<PolicyRoots> {
-  if (cachedRoots !== null) return cachedRoots;
+  if (cachedRoots !== null) {
+    // Re-resolve roots that did not exist when first requested (e.g. the
+    // engine materialized its first project after Studio started); resolved
+    // roots stay cached.
+    if (cachedRoots.selects === null || cachedRoots.metadata === null ||
+        cachedRoots.props === null || cachedRoots.media === null) {
+      const { repoRoot } = cachedRoots;
+      cachedRoots = {
+        repoRoot,
+        selects: cachedRoots.selects ?? (await realpathOrNull(path.join(repoRoot, "input", "selects"))),
+        metadata: cachedRoots.metadata ?? (await realpathOrNull(path.join(repoRoot, "input", "metadata"))),
+        props: cachedRoots.props ?? (await realpathOrNull(path.join(repoRoot, ".cache", "render-props"))),
+        media: cachedRoots.media ?? (await realpathOrNull(path.join(repoRoot, "public", "runtime-selects"))),
+      };
+    }
+    return cachedRoots;
+  }
 
   const anchor = process.env.MYVIDEO_REPO_ROOT ?? path.resolve(process.cwd(), "..");
   const repoRoot = await realpathOrNull(anchor);

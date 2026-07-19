@@ -5,8 +5,11 @@ import {
   fetchDraft,
   fetchProject,
   fetchProjects,
+  fetchRenderJob,
   saveDraftApi,
+  startRenderApi,
 } from "@/lib/projectClient";
+import type { RenderJobV1 } from "@/lib/renderDocument";
 import { MAX_FRAMES } from "@/lib/projectDocument";
 import type { ProjectDocumentV1, ProjectSummaryV1 } from "@/lib/projectDocument";
 import type { StudioDraftClipV1, StudioDraftV1 } from "@/lib/draftDocument";
@@ -73,6 +76,9 @@ const CLEARED_DRAFT = {
   draftDirty: false,
   draftBusy: "idle" as const,
   draftError: null,
+  renderJob: null,
+  renderBusy: false,
+  renderError: null,
 };
 
 interface StudioState {
@@ -92,6 +98,13 @@ interface StudioState {
   moveDraftClip: (index: number, delta: -1 | 1) => void;
   toggleDraftClip: (index: number) => void;
   setDraftTrim: (index: number, field: "trimBefore" | "trimAfter", value: number) => void;
+
+  // Local render (Phase 3) — one job at a time, explicit start only.
+  renderJob: RenderJobV1 | null;
+  renderBusy: boolean;
+  renderError: string | null;
+  startDraftRender: () => Promise<void>;
+  refreshRenderJob: () => Promise<void>;
 
   // Real projects (read-only, via /api/projects)
   realProjects: ProjectSummaryV1[];
@@ -305,6 +318,29 @@ export const useStudioStore = create<StudioState>()((set, get) => ({
       );
       return { draftWorking: { ...s.draftWorking, clips: next }, draftDirty: true };
     }),
+
+  startDraftRender: async () => {
+    const { draft, draftDirty, renderBusy, renderJob } = get();
+    if (draft === null || draftDirty || renderBusy) return;
+    if (renderJob !== null && (renderJob.status === "queued" || renderJob.status === "running")) {
+      return;
+    }
+    set({ renderBusy: true, renderError: null });
+    const res = await startRenderApi(draft.draftId, draft.version);
+    if (get().draft?.draftId !== draft.draftId) return;
+    if (res.ok) {
+      set({ renderJob: res.value, renderBusy: false, renderError: null });
+    } else {
+      set({ renderBusy: false, renderError: res.message });
+    }
+  },
+  refreshRenderJob: async () => {
+    const { renderJob } = get();
+    if (renderJob === null) return;
+    const res = await fetchRenderJob(renderJob.renderId);
+    if (get().renderJob?.renderId !== renderJob.renderId) return;
+    if (res.ok) set({ renderJob: res.value });
+  },
 
   realProjects: [],
   realProjectsStatus: "idle",

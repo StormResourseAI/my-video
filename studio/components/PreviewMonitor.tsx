@@ -114,6 +114,11 @@ export default function PreviewMonitor() {
   const createDraftFromSource = useStudioStore((s) => s.createDraftFromSource);
   const saveDraft = useStudioStore((s) => s.saveDraft);
   const exitDraft = useStudioStore((s) => s.exitDraft);
+  const renderJob = useStudioStore((s) => s.renderJob);
+  const renderBusy = useStudioStore((s) => s.renderBusy);
+  const renderError = useStudioStore((s) => s.renderError);
+  const startDraftRender = useStudioStore((s) => s.startDraftRender);
+  const refreshRenderJob = useStudioStore((s) => s.refreshRenderJob);
 
   const playerRef = useRef<PlayerRef>(null);
 
@@ -146,6 +151,15 @@ export default function PreviewMonitor() {
     const id = setInterval(() => tick(0.1), 100);
     return () => clearInterval(id);
   }, [playing, realMode, tick]);
+
+  // Poll the active render job until it reaches a terminal state.
+  const renderActive =
+    renderJob !== null && (renderJob.status === "queued" || renderJob.status === "running");
+  useEffect(() => {
+    if (!renderActive) return;
+    const id = setInterval(() => void refreshRenderJob(), 2000);
+    return () => clearInterval(id);
+  }, [renderActive, refreshRenderJob]);
 
   const fps = config?.fps ?? 30;
   const durationInFrames = config?.durationInFrames ?? 0;
@@ -293,6 +307,41 @@ export default function PreviewMonitor() {
               <button
                 type="button"
                 onClick={() => {
+                  if (draftDerivation === null) return;
+                  const seconds = (draftDerivation.durationInFrames / (doc?.composition?.fps ?? 30)).toFixed(1);
+                  if (
+                    window.confirm(
+                      `Render draft v${(draft as StudioDraftV1).version} to MP4?\n\n` +
+                        `${draftDerivation.props.clips.length} clip(s) · ` +
+                        `${draftDerivation.durationInFrames} frames (~${seconds}s) · 1080×1920 H.264`,
+                    )
+                  ) {
+                    void startDraftRender();
+                  }
+                }}
+                disabled={
+                  draftDirty ||
+                  renderBusy ||
+                  renderActive ||
+                  draftDerivation === null ||
+                  (draft as StudioDraftV1).renderEligibility !== "eligible"
+                }
+                title={
+                  draftDirty
+                    ? "Save the draft before rendering"
+                    : (draft as StudioDraftV1).renderEligibility === "source-changed"
+                      ? "Source changed — create a new draft to render"
+                      : renderActive
+                        ? "A render is already running"
+                        : undefined
+                }
+                className="rounded bg-accent-soft px-2.5 py-1 text-[11px] font-semibold text-accent hover:brightness-125 disabled:opacity-40"
+              >
+                Render MP4
+              </button>
+              <button
+                type="button"
+                onClick={() => {
                   if (
                     !draftDirty ||
                     window.confirm("Discard unsaved draft changes and return to the source preview?")
@@ -317,6 +366,51 @@ export default function PreviewMonitor() {
         <p role="alert" className="border-b border-edge bg-danger/10 px-3 py-1.5 text-[11px] text-danger">
           {draftError}
         </p>
+      )}
+      {renderError !== null && (
+        <p role="alert" className="border-b border-edge bg-danger/10 px-3 py-1.5 text-[11px] text-danger">
+          {renderError}
+        </p>
+      )}
+      {draftMode && renderJob !== null && (
+        <div
+          role="status"
+          aria-label="Render status"
+          className="flex flex-wrap items-center gap-2 border-b border-edge px-3 py-1.5 text-[11px]"
+        >
+          <span className="font-semibold uppercase tracking-widest text-muted">Render</span>
+          <Chip
+            tone={
+              renderJob.status === "succeeded"
+                ? "ok"
+                : renderJob.status === "failed" || renderJob.status === "timed-out"
+                  ? "warn"
+                  : "accent"
+            }
+          >
+            {renderJob.status}
+          </Chip>
+          <span className="font-mono text-muted">
+            {renderJob.durationInFrames}f · draft v{renderJob.draftVersion}
+          </span>
+          {renderJob.status === "succeeded" && (
+            <a
+              href={`/api/renders/${renderJob.renderId}/output`}
+              download
+              className="rounded bg-accent-soft px-2 py-0.5 font-semibold text-accent hover:brightness-125"
+            >
+              Download MP4
+              {renderJob.outputBytes !== null
+                ? ` (${(renderJob.outputBytes / (1024 * 1024)).toFixed(1)} MB)`
+                : ""}
+            </a>
+          )}
+          {(renderJob.status === "failed" || renderJob.status === "timed-out") && (
+            <span role="alert" className="text-danger">
+              {renderJob.error ?? "Render did not complete."}
+            </span>
+          )}
+        </div>
       )}
 
       <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">

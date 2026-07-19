@@ -18,6 +18,7 @@ import {
   type DraftEditsV1,
   type StudioDraftV1,
 } from "./draftDocument";
+import { validateRenderJob, type RenderJobV1 } from "./renderDocument";
 
 export type ClientResult<T> =
   | { ok: true; value: T }
@@ -104,6 +105,32 @@ export async function fetchDraft(draftId: string): Promise<ClientResult<StudioDr
     return { ok: false, code: "invalid_id", message: "Invalid draft id." };
   }
   return asDraft(await getJson(`/api/drafts/${encodeURIComponent(draftId)}`));
+}
+
+function asRenderJob(res: ClientResult<unknown>): ClientResult<RenderJobV1> {
+  if (!res.ok) return res;
+  const job = validateRenderJob(res.value);
+  if (job === null) {
+    return { ok: false, code: "invalid_contract", message: "Render job failed validation." };
+  }
+  return { ok: true, value: job };
+}
+
+export async function startRenderApi(
+  draftId: string,
+  expectedDraftVersion: number,
+): Promise<ClientResult<RenderJobV1>> {
+  if (!UUID_RE.test(draftId)) {
+    return { ok: false, code: "invalid_id", message: "Invalid draft id." };
+  }
+  return asRenderJob(await sendJson("/api/renders", "POST", { draftId, expectedDraftVersion }));
+}
+
+export async function fetchRenderJob(renderId: string): Promise<ClientResult<RenderJobV1>> {
+  if (!UUID_RE.test(renderId)) {
+    return { ok: false, code: "invalid_id", message: "Invalid render id." };
+  }
+  return asRenderJob(await getJson(`/api/renders/${encodeURIComponent(renderId)}`));
 }
 
 export async function fetchProjects(): Promise<ClientResult<ProjectSummaryV1[]>> {

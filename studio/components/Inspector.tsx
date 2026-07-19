@@ -207,8 +207,108 @@ function ClipDetails({ name, meta }: { name: string; meta: string }) {
   );
 }
 
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-2 text-muted">
+      <span className="shrink-0">{label}</span>
+      <span className="text-right font-mono text-[11px] break-all text-text">{value}</span>
+    </div>
+  );
+}
+
+/** Real project / asset metadata — read-only, no mock editing affordances. */
+function RealDetails() {
+  const doc = useStudioStore((s) => s.document);
+  const selection = useStudioStore((s) => s.selection);
+
+  if (doc === null) {
+    return (
+      <div className="m-3 rounded-md border border-dashed border-edge p-4 text-center text-muted">
+        Project metadata appears here once the project loads.
+      </div>
+    );
+  }
+
+  const asset =
+    selection.kind === "asset"
+      ? (doc.assets.find((a) => a.assetId === selection.assetId) ?? null)
+      : null;
+
+  if (asset !== null) {
+    return (
+      <>
+        <div className="border-b border-edge px-3 py-2">
+          <p className="truncate font-semibold" data-testid="inspector-selection-name">
+            {asset.fileName}
+          </p>
+          <p className="mt-0.5 text-[11px] text-muted">Staged clip · read-only</p>
+        </div>
+        <Group title="Asset">
+          <Row label="Kind" value={asset.kind} />
+          <Row label="Project" value={doc.projectId} />
+          <Row label="Served from" value={asset.previewUrl} />
+        </Group>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="border-b border-edge px-3 py-2">
+        <p className="truncate font-semibold">{doc.projectName}</p>
+        <p className="mt-0.5 text-[11px] text-muted">Read-only project overview</p>
+      </div>
+      <Group title="Project">
+        <Row label="Id" value={doc.projectId} />
+        <Row label="Client" value={doc.clientSlug ?? "—"} />
+        <Row label="Status" value={doc.status} />
+        <Row label="Source" value="materialized cache" />
+        <Row label="Cached" value={doc.cacheTimestamp ?? "—"} />
+        <Row label="Freshness" value={doc.freshness} />
+        <Row label="Assets" value={String(doc.assets.length)} />
+      </Group>
+      {doc.composition !== null && (
+        <Group title="Composition">
+          <Row label="Id" value={doc.composition.compositionId} />
+          <Row
+            label="Frame"
+            value={`${doc.composition.width}×${doc.composition.height} @ ${doc.composition.fps}fps`}
+          />
+          <Row label="Duration" value={`${doc.composition.durationInFrames} frames`} />
+          <Row label="Aspect" value={doc.composition.aspectRatio} />
+        </Group>
+      )}
+      {doc.warnings.length > 0 && (
+        <Group title="Warnings">
+          {doc.warnings.map((w) => (
+            <p key={w} className="text-[11px] text-warn">
+              {w}
+            </p>
+          ))}
+        </Group>
+      )}
+    </>
+  );
+}
+
 export default function Inspector() {
   const selection = useStudioStore((s) => s.selection);
+  const realMode = useStudioStore((s) => s.activeRealProjectId) !== null;
+
+  if (realMode) {
+    return (
+      <aside
+        aria-label="Inspector"
+        className="flex h-full min-h-0 flex-col overflow-y-auto border-l border-edge bg-panel"
+      >
+        <div className="flex items-center justify-between border-b border-edge px-3 py-2">
+          <h2 className="text-[11px] font-bold tracking-widest text-muted uppercase">Inspector</h2>
+          <Chip tone="warn">Read-only</Chip>
+        </div>
+        <RealDetails />
+      </aside>
+    );
+  }
 
   let body: React.ReactNode;
   if (selection.kind === "clip") {

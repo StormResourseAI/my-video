@@ -1,3 +1,7 @@
+// Browser-safe boundary: this module (and everything it imports) is loaded by
+// the Studio web bundle via @remotion/player. It must never import Node
+// built-ins, environment variables, data/*.json singletons, or
+// renderer/bundler/CLI code. Enforced by `npm run check:browser-safe`.
 import { AbsoluteFill, Series, staticFile, useCurrentFrame, interpolate } from "remotion";
 import { Video } from "@remotion/media";
 import { ClipTransition } from "./components/ClipTransition";

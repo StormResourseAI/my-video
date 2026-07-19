@@ -7,7 +7,7 @@
   "private": true,
   "dependencies": {
     "@remotion/cli": "4.0.445",
-    "@remotion/media": "^4.0.445",
+    "@remotion/media": "4.0.445",
     "@remotion/tailwind-v4": "4.0.445",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -39,6 +39,7 @@
     "manifest": "node scripts/build-manifest.mjs",
     "watch": "node scripts/watch.mjs",
     "beats": "python3 scripts/extract_beats.py input/music.mp3",
+    "check:browser-safe": "node scripts/check-browser-safe.mjs",
     "broll:match": "node scripts/build-broll-manifest.mjs",
     "upgrade": "remotion upgrade",
     "lint": "eslint src && tsc"

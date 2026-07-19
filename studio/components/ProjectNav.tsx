@@ -61,8 +61,14 @@ export default function ProjectNav() {
         </div>
       ) : realProjects.length === 0 ? (
         <div className="m-3 rounded-md border border-dashed border-edge p-4 text-center text-muted">
-          <p className="font-semibold text-text">No preview-ready projects</p>
+          <p className="font-semibold text-text">No materialized projects available</p>
           <p className="mt-1">Studio did not find materialized project data. Your source files are safe; prepare a project outside Studio, then retry.</p>
+          <button type="button" onClick={() => void loadRealProjects()} className="mt-3 rounded bg-raised px-2 py-1 hover:text-text">Retry</button>
+        </div>
+      ) : !realProjects.some((project) => project.previewReady) ? (
+        <div className="m-3 rounded-md border border-dashed border-edge p-4 text-center text-muted">
+          <p className="font-semibold text-text">No preview-ready project is available</p>
+          <p className="mt-1">Materialize a project outside Studio, then retry. Source files remain safe.</p>
           <button type="button" onClick={() => void loadRealProjects()} className="mt-3 rounded bg-raised px-2 py-1 hover:text-text">Retry</button>
         </div>
       ) : (

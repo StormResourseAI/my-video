@@ -22,8 +22,7 @@ function NarrowGuard() {
   if (dismissed) return null;
   return (
     <div
-      role="dialog"
-      aria-modal="true"
+      role="status"
       aria-label="Desktop workspace recommended"
       className="fixed inset-0 z-50 hidden max-lg:flex flex-col items-center justify-center gap-3 bg-ink/95 p-6 text-center"
     >
@@ -34,7 +33,6 @@ function NarrowGuard() {
       </p>
       <button
         type="button"
-        autoFocus
         onClick={() => setDismissed(true)}
         className="rounded-md bg-accent-soft px-3 py-1.5 font-semibold text-accent"
       >

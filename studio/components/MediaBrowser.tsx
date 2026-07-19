@@ -23,12 +23,12 @@ export default function MediaBrowser() {
           This project references no available media. The source remains unchanged.
         </div>
       ) : (
-        <ul role="listbox" aria-label="Project source media" className="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
+        <ul aria-label="Project source media" className="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
           {doc.assets.map((asset) => {
             const selected = selection.kind === "asset" && selection.assetId === asset.assetId;
             return (
-              <li key={asset.assetId} role="presentation">
-                <button type="button" role="option" aria-selected={selected} aria-label={`Select ${asset.fileName}`}
+              <li key={asset.assetId}>
+                <button type="button" aria-pressed={selected} aria-label={`Select ${asset.fileName}`}
                   onClick={() => selectAsset(asset.assetId)}
                   className={`w-full rounded-lg border p-2 text-left ${selected ? "border-accent bg-accent-soft" : "border-edge bg-raised hover:border-muted"}`}>
                   <p className="truncate text-[12px] font-medium">{asset.fileName}</p>

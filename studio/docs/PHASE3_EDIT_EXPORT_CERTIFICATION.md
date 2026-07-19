@@ -162,6 +162,39 @@ Documented non-blocking LOW findings:
 5. Studio serves no favicon; browsers log a 404 for `/favicon.ico`
    (pre-existing since Phase 1).
 
+## Post-review remediation: side-effect-free reads
+
+The independent live review of the initial PR found a MEDIUM: GET/HEAD read
+paths reached `ensureDataDir` (mkdir) and the root creation/chmod logic, so
+reading an unknown id could create directories and a read could create or
+chmod the data root. Remediated by structurally splitting the data-root
+boundary into WRITE mode (`getOrCreateDataRoot`, `ensureDataDir` — creation-
+capable, used only by createDraft/updateDraft/createRenderJob/finalize/queue)
+and READ mode (`getExistingDataRoot`, `resolveExistingDataDir` — never
+mkdir/chmod/create; missing roots and unknown ids resolve to 404 with zero
+persistent state). Hardening added in the same change: post-mkdir realpath
+containment proof in `ensureDataDir`, outright rejection of symlinked
+components on read resolution, output.mp4 must be a regular (non-symlink)
+file that realpaths inside its own render directory, and a read-primed root
+cache no longer skips the first write's permission hardening. Eleven
+regression tests prove tree-level non-mutation (including the root's own
+mode/mtime) for unknown-id reads, missing-root reads, and existing-object
+reads, plus symlink-escape rejection and intact explicit-write behavior.
+A second fresh-context adversarial pass on the remediation reported 0 HIGH;
+its 2 MEDIUMs (cache-order chmod skip; snapshot blind spot on the root
+inode) were fixed as above, and its LOWs are documented below.
+
+Additional documented LOW findings from the remediation review:
+
+6. A stale cached root swapped for a symlink could create empty directories
+   at the symlink target before the containment proof rejects the write
+   (local user acting on their own machine; no data written).
+7. Between the output containment check and streaming, a local actor could
+   swap output.mp4 (TOCTOU) or pre-plant a hardlink; both require write
+   access inside the data root, i.e. the operator themselves.
+8. With a broken/unset data root, reads now present 404 (resource absent)
+   rather than 503; writes still return 503 `data_root_unavailable`.
+
 ## Licensing
 
 Installed evidence re-verified: all Remotion packages exact 4.0.445;

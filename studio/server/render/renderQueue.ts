@@ -9,7 +9,7 @@ import { randomUUID } from "node:crypto";
 import { deriveEngineProps } from "@/lib/draftDocument";
 import { RENDER_SCHEMA_VERSION, type RenderJobV1 } from "@/lib/renderDocument";
 import { getProject } from "../projectRepository";
-import { getDataRoot, WriteError } from "../write/dataRootPolicy";
+import { getOrCreateDataRoot, WriteError } from "../write/dataRootPolicy";
 import { getDraft, isDraftSourceCurrent } from "../write/draftRepository";
 import { createRenderJob, finalizeRenderJob } from "../write/renderRepository";
 import { getRoots } from "../pathPolicy";
@@ -101,7 +101,7 @@ async function startRenderLocked(draftId: string, expectedDraftVersion: number):
   await createRenderJob(job, derivation.props);
 
   const { repoRoot } = await getRoots();
-  const dataRoot = await getDataRoot();
+  const dataRoot = await getOrCreateDataRoot();
   let process_: Awaited<ReturnType<RenderRunner>>;
   try {
     process_ = await runner({ repoRoot, dataRoot, renderId: job.renderId });

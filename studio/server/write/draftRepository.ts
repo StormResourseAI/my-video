@@ -18,7 +18,7 @@ import {
   type StudioDraftClipV1,
   type StudioDraftV1,
 } from "@/lib/draftDocument";
-import { ensureDataDir, WriteError } from "./dataRootPolicy";
+import { ensureDataDir, resolveExistingDataDir, WriteError } from "./dataRootPolicy";
 import { readJsonOrNull, writeJsonAtomic, writeJsonExclusive } from "./atomicJson";
 import { computeSourceFingerprint } from "./sourceFingerprint";
 
@@ -102,10 +102,12 @@ export async function createDraft(sourceProjectId: string): Promise<StudioDraftV
   });
 }
 
-/** Load and validate a persisted draft. */
+/** Load and validate a persisted draft. READ path: never creates the data
+ *  root, directories, or any file — unknown ids resolve to 404. */
 export async function getDraft(draftId: string): Promise<StudioDraftV1> {
   if (!UUID_RE.test(draftId)) throw invalidDraftId();
-  const draftDir = await ensureDataDir("drafts", draftId);
+  const draftDir = await resolveExistingDataDir("drafts", draftId);
+  if (draftDir === null) throw draftNotFound();
   const raw = await readJsonOrNull(path.join(draftDir, "draft.json"));
   if (raw === null) throw draftNotFound();
   const draft = validateDraft(raw);

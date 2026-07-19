@@ -110,6 +110,43 @@ describe("phase 3 write-zone boundaries", () => {
   });
 });
 
+describe("phase 3 read/write split", () => {
+  const sliceOf = (source: string, marker: string): string => {
+    const start = source.indexOf(marker);
+    expect(start, `missing ${marker}`).toBeGreaterThanOrEqual(0);
+    const next = source.indexOf("\nexport ", start + marker.length);
+    return source.slice(start, next === -1 ? source.length : next);
+  };
+  const CREATES =
+    /\b(mkdir|mkdtemp|chmod|chown|writeFile|appendFile|createWriteStream|rename|link|symlink|copyFile|truncate|utimes|rm|rmdir|unlink|open)(Sync)?\s*\(/;
+
+  it("read-mode data-root helpers cannot create, chmod, or write", () => {
+    const source = read(join(STUDIO, "server", "write", "dataRootPolicy.ts"));
+    expect(CREATES.test(sliceOf(source, "export async function getExistingDataRoot"))).toBe(false);
+    expect(CREATES.test(sliceOf(source, "export async function resolveExistingDataDir"))).toBe(false);
+    expect(CREATES.test(sliceOf(source, "async function validateExistingRoot"))).toBe(false);
+  });
+
+  it("repository read functions never reach the creation-capable helpers", () => {
+    const draftRepo = read(join(STUDIO, "server", "write", "draftRepository.ts"));
+    expect(sliceOf(draftRepo, "export async function getDraft")).not.toContain("ensureDataDir");
+    const renderRepo = read(join(STUDIO, "server", "write", "renderRepository.ts"));
+    for (const marker of [
+      "async function existingRenderDir",
+      "export async function getRenderJob",
+      "export async function resolveRenderOutput",
+    ]) {
+      const slice = sliceOf(renderRepo, marker);
+      expect(slice, marker).not.toContain("ensureDataDir");
+      expect(slice, marker).not.toContain("createRenderDir");
+    }
+    // Creation stays confined to explicit write operations.
+    expect(sliceOf(renderRepo, "export async function createRenderJob")).toContain("createRenderDir");
+    expect(sliceOf(draftRepo, "export async function createDraft")).toContain("ensureDataDir");
+    expect(sliceOf(draftRepo, "export async function updateDraft")).toContain("ensureDataDir");
+  });
+});
+
 describe("phase 3 render worker boundaries", () => {
   const source = read(WORKER);
 
